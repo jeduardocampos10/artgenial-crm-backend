@@ -27,13 +27,13 @@ class Api::V1::Evolution::SettingsController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API get settings error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API get settings error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
 
   def create
-    Rails.logger.info "Evolution API settings configuration called with params: #{params.inspect}"
+    Rails.logger.info "Evolution API settings configuration called with params: [FILTERED]"
 
     begin
       # Extract parameters
@@ -56,7 +56,7 @@ class Api::V1::Evolution::SettingsController < Api::V1::BaseController
         result: result
       }
     rescue StandardError => e
-      Rails.logger.error "Evolution API settings configuration error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API settings configuration error: #{e.class} - #{e.class}"
       Rails.logger.error e.backtrace.join("\n")
       render json: { error: e.message }, status: :unprocessable_entity
     end
@@ -84,7 +84,7 @@ class Api::V1::Evolution::SettingsController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API update settings error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API update settings error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -122,16 +122,16 @@ class Api::V1::Evolution::SettingsController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Get settings response code: #{response.code}"
-    Rails.logger.info "Evolution API: Get settings response body: #{response.body}"
+    Rails.logger.info "Evolution API: Get settings response body: [FILTERED]"
 
-    raise "Failed to get instance settings. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to get instance settings. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Get settings JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Get settings JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API get settings endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Get settings connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Get settings connection error: #{e.class} - #{e.class}"
     raise "Failed to get instance settings: #{e.message}"
   end
 
@@ -162,21 +162,21 @@ class Api::V1::Evolution::SettingsController < Api::V1::BaseController
     request['Content-Type'] = 'application/json'
     request.body = settings_body.to_json
 
-    Rails.logger.info "Evolution API: Settings request headers: #{request.to_hash}"
-    Rails.logger.info "Evolution API: Settings request body: #{request.body}"
+    Rails.logger.info "Evolution API: Settings request headers: [FILTERED]"
+    Rails.logger.info "Evolution API: Settings request body: [FILTERED]"
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Settings response code: #{response.code}"
-    Rails.logger.info "Evolution API: Settings response body: #{response.body}"
+    Rails.logger.info "Evolution API: Settings response body: [FILTERED]"
 
-    raise "Failed to set instance settings. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to set instance settings. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Settings JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Settings JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API settings endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Settings connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Settings connection error: #{e.class} - #{e.class}"
     raise "Failed to set instance settings: #{e.message}"
   end
 end

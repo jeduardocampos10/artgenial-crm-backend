@@ -121,8 +121,10 @@ json.provider resource.channel.try(:provider)
 ### WhatsApp Channel
 if resource.whatsapp?
   json.message_templates resource.channel.try(:message_templates)
-  # Include provider_config for all users (needed for Z-API, Evolution Go, etc.)
-  # Sensitive fields like tokens are still protected by backend validation
-  json.provider_config resource.channel.try(:provider_config)
+  provider_config = resource.channel.try(:provider_config)
+  if resource.channel.provider == 'evolution'
+    provider_config = (provider_config || {}).except('api_url', 'admin_token', 'api_hash', 'api_key', 'apikey', 'admin_secret', 'hash', 'token', 'instance_token')
+  end
+  json.provider_config provider_config
   json.provider_connection resource.channel.try(:provider_connection_data)
 end

@@ -109,8 +109,8 @@ class DashboardController < ActionController::Base
     # TODO: [Story 1.4] _SECRET values are exposed as plaintext to frontend here.
     # Replace with boolean presence checks or masked values once admin controller is built.
     {
-      EVOLUTION_API_URL: GlobalConfigService.load('EVOLUTION_API_URL', ''),
-      EVOLUTION_ADMIN_SECRET: GlobalConfigService.load('EVOLUTION_ADMIN_SECRET', ''),
+      hasEvolutionConfig: GlobalConfigService.load('EVOLUTION_API_URL', '').present? &&
+        GlobalConfigService.load('EVOLUTION_ADMIN_SECRET', '').present?,
       EVOLUTION_GO_API_URL: GlobalConfigService.load('EVOLUTION_GO_API_URL', ''),
       EVOLUTION_GO_ADMIN_SECRET: GlobalConfigService.load('EVOLUTION_GO_ADMIN_SECRET', ''),
       OPENAI_API_URL: GlobalConfigService.load('OPENAI_API_URL', ''),

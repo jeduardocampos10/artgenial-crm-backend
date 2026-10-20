@@ -245,7 +245,7 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
     end
 
     if parsed['error'].present? || parsed['status'].to_s == 'error'
-      Rails.logger.warn "Evolution API: fetchProfilePictureUrl 200 OK with error body: #{parsed['error'] || parsed['message']}"
+      Rails.logger.warn "Evolution API: fetchProfilePictureUrl 200 OK with error body: [FILTERED]"
       return nil
     end
 
@@ -270,13 +270,13 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
       timeout: 30
     )
 
-    Rails.logger.info "Evolution API logout response: #{response.code} - #{response.body}"
+    Rails.logger.info "Evolution API logout response: #{response.code} - [FILTERED]"
 
     if response.success?
       Rails.logger.info "Evolution API: Successfully logged out instance #{instance_name}"
       true
     else
-      Rails.logger.warn "Evolution API: Logout failed for instance #{instance_name} - #{response.code}: #{response.body}"
+      Rails.logger.warn "Evolution API: Logout failed for instance #{instance_name} - #{response.code}: [FILTERED]"
       false
     end
   rescue StandardError => e
@@ -294,13 +294,13 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
       timeout: 30
     )
 
-    Rails.logger.info "Evolution API delete response: #{response.code} - #{response.body}"
+    Rails.logger.info "Evolution API delete response: #{response.code} - [FILTERED]"
 
     if response.success?
       Rails.logger.info "Evolution API: Successfully deleted instance #{instance_name}"
       true
     else
-      Rails.logger.warn "Evolution API: Delete failed for instance #{instance_name} - #{response.code}: #{response.body}"
+      Rails.logger.warn "Evolution API: Delete failed for instance #{instance_name} - #{response.code}: [FILTERED]"
       false
     end
   rescue StandardError => e
@@ -510,7 +510,7 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
       audio: audio_url
     }
 
-    Rails.logger.info "[Evolution Audio] Request body: #{body_data.to_json}"
+    Rails.logger.info "[Evolution Audio] Request body: [FILTERED]"
 
     response = HTTParty.post(
       "#{api_base_path}/message/sendWhatsAppAudio/#{instance_name}",
@@ -520,7 +520,7 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
     )
 
     Rails.logger.info "[Evolution Audio] Response status: #{response.code}"
-    Rails.logger.info "[Evolution Audio] Response body: #{response.body}"
+    Rails.logger.info "[Evolution Audio] Response body: [FILTERED]"
 
     process_response(response)
   end
@@ -557,7 +557,7 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
     )
 
     Rails.logger.info "[Evolution Audio] Base64 Response status: #{response.code}"
-    Rails.logger.info "[Evolution Audio] Base64 Response body: #{response.body}"
+    Rails.logger.info "[Evolution Audio] Base64 Response body: [FILTERED]"
 
     process_response(response)
   end
@@ -579,7 +579,7 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
       return parsed_response.dig('key', 'id') || parsed_response['messageId'] || true
     end
 
-    Rails.logger.error "Evolution API error: #{response.code} - #{response.body}"
+    Rails.logger.error "Evolution API error: #{response.code} - [FILTERED]"
     false
   end
 end

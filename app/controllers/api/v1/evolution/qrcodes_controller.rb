@@ -26,13 +26,13 @@ class Api::V1::Evolution::QrcodesController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API get QR code error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API get QR code error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
 
   def create
-    Rails.logger.info "Evolution API QR code refresh called with params: #{params.inspect}"
+    Rails.logger.info "Evolution API QR code refresh called with params: [FILTERED]"
 
     begin
       # Extract parameters
@@ -53,7 +53,7 @@ class Api::V1::Evolution::QrcodesController < Api::V1::BaseController
         qrcode: qrcode_data
       }
     rescue StandardError => e
-      Rails.logger.error "Evolution API QR code refresh error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API QR code refresh error: #{e.class} - #{e.class}"
       Rails.logger.error e.backtrace.join("\n")
       render json: { error: e.message }, status: :unprocessable_entity
     end
@@ -91,13 +91,13 @@ class Api::V1::Evolution::QrcodesController < Api::V1::BaseController
     request['apikey'] = api_hash
     request['Content-Type'] = 'application/json'
 
-    Rails.logger.info "Evolution API: QR code request headers: #{request.to_hash}"
+    Rails.logger.info "Evolution API: QR code request headers: [FILTERED]"
 
     response = http.request(request)
     Rails.logger.info "Evolution API: QR code response code: #{response.code}"
-    Rails.logger.info "Evolution API: QR code response body: #{response.body}"
+    Rails.logger.info "Evolution API: QR code response body: [FILTERED]"
 
-    raise "Failed to get QR code. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to get QR code. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     parsed_response = JSON.parse(response.body)
 
@@ -117,10 +117,10 @@ class Api::V1::Evolution::QrcodesController < Api::V1::BaseController
       connected: false
     }
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: QR code JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: QR code JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API connect endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: QR code connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: QR code connection error: #{e.class} - #{e.class}"
     raise "Failed to get QR code: #{e.message}"
   end
 end

@@ -62,6 +62,19 @@ RSpec.describe InboxSerializer do
       expect(result['health_source']).to eq('stored_flag')
     end
 
+    it 'keeps instance settings but removes Evolution credentials from serialized channels' do
+      channel.provider_config = {
+        'instance_name' => 'inst-1', 'instance_settings' => { 'rejectCall' => true },
+        'api_url' => 'https://private.example', 'admin_token' => 'server-secret',
+        'api_hash' => 'instance-secret', 'api_key' => 'api-secret'
+      }
+      result = described_class.serialize(inbox)
+      expect(result['provider_config']).to eq(
+        'instance_name' => 'inst-1', 'instance_settings' => { 'rejectCall' => true }
+      )
+      expect(channel.provider_config['admin_token']).to eq('server-secret')
+    end
+
     it 'adds no secrets to the payload' do
       result = described_class.serialize(inbox)
 

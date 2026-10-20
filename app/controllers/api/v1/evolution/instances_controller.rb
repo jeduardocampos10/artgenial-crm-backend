@@ -7,7 +7,7 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
   })
 
   def index
-    Rails.logger.info "Evolution API fetch instances called with params: #{params.inspect}"
+    Rails.logger.info "Evolution API fetch instances called with params: [FILTERED]"
 
     begin
       instance_name = params[:instanceName]
@@ -38,9 +38,6 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
           {
             instance_name: ch.provider_config['instance_name'],
             phone_number: ch.phone_number,
-            # Falls back to global EVOLUTION_API_URL when the channel was
-            # created via the Admin Settings flow (provider_config left blank).
-            api_url: evolution_api_url_for(ch),
             status: 'connected' # You might want to check actual status
           }
         end
@@ -51,7 +48,7 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
         }
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API fetch instances error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API fetch instances error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -77,7 +74,7 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API logout error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API logout error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -115,7 +112,7 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Get instance info response code: #{response.code}"
-    Rails.logger.info "Evolution API: Get instance info response body: #{response.body}"
+    Rails.logger.info "Evolution API: Get instance info response body: [FILTERED]"
 
     if response.is_a?(Net::HTTPSuccess)
       JSON.parse(response.body)
@@ -129,7 +126,7 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
       }
     end
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Get instance info JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Get instance info JSON parse error: #{e.class}, Body: [FILTERED]"
     # Return basic info on parse error
     {
       instance: {
@@ -138,7 +135,7 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
       }
     }
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Get instance info connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Get instance info connection error: #{e.class} - #{e.class}"
     # Return basic info on connection error
     {
       instance: {
@@ -165,7 +162,7 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Logout response code: #{response.code}"
-    Rails.logger.info "Evolution API: Logout response body: #{response.body}"
+    Rails.logger.info "Evolution API: Logout response body: [FILTERED]"
 
     # 400 "not connected" or 500 "Connection Closed" = already disconnected, treat as success
     if response.code == '400' || response.code == '500'
@@ -177,14 +174,14 @@ class Api::V1::Evolution::InstancesController < Api::V1::BaseController
       end
     end
 
-    raise "Failed to logout instance. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to logout instance. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Logout JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Logout JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API logout endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Logout connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Logout connection error: #{e.class} - #{e.class}"
     raise "Failed to logout instance: #{e.message}"
   end
 end

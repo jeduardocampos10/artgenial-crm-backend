@@ -703,7 +703,11 @@ module Api
 
         def reauthorize_and_update_channel(channel_attributes)
           @inbox.channel.reauthorized! if @inbox.channel.respond_to?(:reauthorized!)
-          @inbox.channel.update!(permitted_params(channel_attributes)[:channel])
+          attributes = permitted_params(channel_attributes)[:channel]
+          if @inbox.whatsapp? && @inbox.channel.provider == 'evolution' && attributes[:provider_config].present?
+            attributes[:provider_config] = @inbox.channel.provider_config.to_h.merge(attributes[:provider_config].to_h)
+          end
+          @inbox.channel.update!(attributes)
         end
 
         def update_channel_feature_flags

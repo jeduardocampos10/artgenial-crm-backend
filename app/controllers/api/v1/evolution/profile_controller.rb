@@ -33,7 +33,7 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API fetch profile error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API fetch profile error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -62,7 +62,7 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API update profile name error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API update profile name error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -91,7 +91,7 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API update profile status error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API update profile status error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -123,7 +123,7 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API update profile picture error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API update profile picture error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -154,7 +154,7 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API remove profile picture error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API remove profile picture error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -195,16 +195,16 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Fetch profile response code: #{response.code}"
-    Rails.logger.info "Evolution API: Fetch profile response body: #{response.body}"
+    Rails.logger.info "Evolution API: Fetch profile response body: [FILTERED]"
 
-    raise "Failed to fetch profile. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to fetch profile. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Fetch profile JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Fetch profile JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API fetch profile endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Fetch profile connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Fetch profile connection error: #{e.class} - #{e.class}"
     raise "Failed to fetch profile: #{e.message}"
   end
 
@@ -226,16 +226,16 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Update profile name response code: #{response.code}"
-    Rails.logger.info "Evolution API: Update profile name response body: #{response.body}"
+    Rails.logger.info "Evolution API: Update profile name response body: [FILTERED]"
 
-    raise "Failed to update profile name. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to update profile name. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Update profile name JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Update profile name JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API update profile name endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Update profile name connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Update profile name connection error: #{e.class} - #{e.class}"
     raise "Failed to update profile name: #{e.message}"
   end
 
@@ -257,16 +257,16 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Update profile status response code: #{response.code}"
-    Rails.logger.info "Evolution API: Update profile status response body: #{response.body}"
+    Rails.logger.info "Evolution API: Update profile status response body: [FILTERED]"
 
-    raise "Failed to update profile status. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to update profile status. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Update profile status JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Update profile status JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API update profile status endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Update profile status connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Update profile status connection error: #{e.class} - #{e.class}"
     raise "Failed to update profile status: #{e.message}"
   end
 
@@ -288,16 +288,16 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Update profile picture response code: #{response.code}"
-    Rails.logger.info "Evolution API: Update profile picture response body: #{response.body}"
+    Rails.logger.info "Evolution API: Update profile picture response body: [FILTERED]"
 
-    raise "Failed to update profile picture. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to update profile picture. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Update profile picture JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Update profile picture JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API update profile picture endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Update profile picture connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Update profile picture connection error: #{e.class} - #{e.class}"
     raise "Failed to update profile picture: #{e.message}"
   end
 
@@ -318,16 +318,16 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Remove profile picture response code: #{response.code}"
-    Rails.logger.info "Evolution API: Remove profile picture response body: #{response.body}"
+    Rails.logger.info "Evolution API: Remove profile picture response body: [FILTERED]"
 
-    raise "Failed to remove profile picture. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to remove profile picture. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Remove profile picture JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Remove profile picture JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API remove profile picture endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Remove profile picture connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Remove profile picture connection error: #{e.class} - #{e.class}"
     raise "Failed to remove profile picture: #{e.message}"
   end
 
@@ -351,7 +351,7 @@ class Api::V1::Evolution::ProfileController < Api::V1::BaseController
 
       Rails.logger.info "Evolution API: Successfully updated inbox #{inbox.id} avatar"
     rescue StandardError => e
-      Rails.logger.error "Evolution API: Failed to update inbox avatar: #{e.message}"
+      Rails.logger.error "Evolution API: Failed to update inbox avatar: #{e.class}"
       # Don't raise error, just log it - avatar update is not critical
     end
   end

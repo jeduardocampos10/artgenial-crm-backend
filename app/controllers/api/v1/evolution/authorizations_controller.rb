@@ -4,7 +4,7 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
   })
 
   def create
-    Rails.logger.info "Evolution API connection verification called with params: #{params.inspect}"
+    Rails.logger.info "Evolution API connection verification called with params: [FILTERED]"
 
     # Parâmetros vêm dentro de authorization
     auth_params = params[:authorization] || params
@@ -21,7 +21,7 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
     missing_params << 'phone_number' if phone_number.blank?
 
     if missing_params.any?
-      Rails.logger.warn "Evolution API: Missing parameters: #{missing_params.join(', ')}. Params: #{params.inspect}"
+      Rails.logger.warn "Evolution API: Missing parameters: #{missing_params.join(', ')}. Params: [FILTERED]"
       return error_response(
         ApiErrorCodes::MISSING_REQUIRED_FIELD,
         "Missing required parameters: #{missing_params.join(', ')}",
@@ -61,13 +61,15 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
             client_name: evolution_status['clientName'],
             whatsapp_version: evolution_status['whatsappWebVersion']
           },
-          instance: instance_data
+          # The upstream response includes an instance API key (hash).
+          # Only connection metadata is needed by the customer interface.
+          instance: instance_data.fetch('instance', {}).slice('instanceName', 'instanceId', 'status')
           # qrcode: qrcode_data
         },
         message: 'Instance created successfully'
       )
     rescue StandardError => e
-      Rails.logger.error "Evolution API connection error: #{e.message}"
+      Rails.logger.error "Evolution API connection error: #{e.class}"
       error_response(ApiErrorCodes::EXTERNAL_SERVICE_ERROR, e.message, status: :unprocessable_entity)
     end
   end
@@ -88,20 +90,20 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
     request = Net::HTTP::Get.new(uri)
     request['Content-Type'] = 'application/json'
 
-    Rails.logger.info "Evolution API: Request headers: #{request.to_hash}"
+    Rails.logger.info "Evolution API: Request headers: [FILTERED]"
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Server response code: #{response.code}"
-    Rails.logger.info "Evolution API: Server response body: #{response.body}"
+    Rails.logger.info "Evolution API: Server response body: [FILTERED]"
 
-    raise "Server verification failed. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Server verification failed. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Server JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Server JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API server endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Server connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Server connection error: #{e.class} - #{e.class}"
     raise "Failed to verify instance: #{e.message}"
   end
 
@@ -157,21 +159,21 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
     request['Content-Type'] = 'application/json'
     request.body = request_body.to_json
 
-    Rails.logger.info "Evolution API: Create instance request headers: #{request.to_hash}"
-    Rails.logger.info "Evolution API: Create instance request body: #{request.body}"
+    Rails.logger.info "Evolution API: Create instance request headers: [FILTERED]"
+    Rails.logger.info "Evolution API: Create instance request body: [FILTERED]"
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Create instance response code: #{response.code}"
-    Rails.logger.info "Evolution API: Create instance response body: #{response.body}"
+    Rails.logger.info "Evolution API: Create instance response body: [FILTERED]"
 
-    raise "Failed to create instance. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to create instance. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Create instance JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Create instance JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API create instance endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Create instance connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Create instance connection error: #{e.class} - #{e.class}"
     raise "Failed to create instance: #{e.message}"
   end
 
@@ -196,12 +198,12 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
       raise 'Instance deletion failed - instance still exists'
     rescue StandardError => e
       # If 404 or error, instance is gone - good!
-      Rails.logger.info "Evolution API: Verified instance #{instance_name} was deleted (#{e.message})"
+      Rails.logger.info "Evolution API: Verified instance #{instance_name} was deleted (#{e.class})"
     end
 
   rescue StandardError => e
     # If 404 or any error, instance doesn't exist, which is fine
-    Rails.logger.info "Evolution API: Instance #{instance_name} doesn't exist (#{e.message}), proceeding with creation"
+    Rails.logger.info "Evolution API: Instance #{instance_name} doesn't exist (#{e.class}), proceeding with creation"
   end
 
   def fetch_instances(api_url, admin_token, instance_name)
@@ -221,19 +223,19 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Fetch instances response code: #{response.code}"
-    Rails.logger.info "Evolution API: Fetch instances response body: #{response.body}"
+    Rails.logger.info "Evolution API: Fetch instances response body: [FILTERED]"
 
     # If 404, instance doesn't exist
     raise 'Instance not found' if response.code == '404'
 
-    raise "Failed to fetch instances. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to fetch instances. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Fetch instances JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Fetch instances JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API fetchInstances endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Fetch instances connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Fetch instances connection error: #{e.class} - #{e.class}"
     raise e.message
   end
 
@@ -255,16 +257,16 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
     response = http.request(request)
 
     Rails.logger.info "Evolution API: Delete instance response code: #{response.code}"
-    Rails.logger.info "Evolution API: Delete instance response body: #{response.body}"
+    Rails.logger.info "Evolution API: Delete instance response body: [FILTERED]"
 
-    raise "Failed to delete instance. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to delete instance. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Delete instance JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Delete instance JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API delete endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Delete instance connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Delete instance connection error: #{e.class} - #{e.class}"
     raise "Failed to delete instance: #{e.message}"
   end
 
@@ -283,20 +285,20 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
     request['apikey'] = api_hash
     request['Content-Type'] = 'application/json'
 
-    Rails.logger.info "Evolution API: QR code request headers: #{request.to_hash}"
+    Rails.logger.info "Evolution API: QR code request headers: [FILTERED]"
 
     response = http.request(request)
     Rails.logger.info "Evolution API: QR code response code: #{response.code}"
-    Rails.logger.info "Evolution API: QR code response body: #{response.body}"
+    Rails.logger.info "Evolution API: QR code response body: [FILTERED]"
 
-    raise "Failed to get QR code. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to get QR code. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: QR code JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: QR code JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API QR code endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: QR code connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: QR code connection error: #{e.class} - #{e.class}"
     raise "Failed to get QR code: #{e.message}"
   end
 
@@ -336,7 +338,7 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
 
     return if response.success?
 
-    Rails.logger.warn "[EVOLUTION] Proxy configuration failed: #{response.body}"
+    Rails.logger.warn "[EVOLUTION] Proxy configuration failed: [FILTERED]"
   end
 
   def apply_instance_settings(api_url, admin_token, instance_name, instance_settings)
@@ -365,6 +367,6 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
 
     return if response.success?
 
-    Rails.logger.warn "[EVOLUTION] Instance settings configuration failed: #{response.body}"
+    Rails.logger.warn "[EVOLUTION] Instance settings configuration failed: [FILTERED]"
   end
 end

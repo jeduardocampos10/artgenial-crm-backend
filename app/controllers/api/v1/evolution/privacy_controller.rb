@@ -20,7 +20,7 @@ class Api::V1::Evolution::PrivacyController < Api::V1::BaseController
         data: result
       }
     rescue StandardError => e
-      Rails.logger.error "Evolution API: Get privacy error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API: Get privacy error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -39,7 +39,7 @@ class Api::V1::Evolution::PrivacyController < Api::V1::BaseController
         data: result
       }
     rescue StandardError => e
-      Rails.logger.error "Evolution API: Update privacy error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API: Update privacy error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
@@ -92,9 +92,9 @@ class Api::V1::Evolution::PrivacyController < Api::V1::BaseController
     request['Content-Type'] = 'application/json'
 
     response = http.request(request)
-    Rails.logger.info "Evolution API: Get privacy response #{response.code}: #{response.body}"
+    Rails.logger.info "Evolution API: Get privacy response #{response.code}: [FILTERED]"
 
-    raise "Failed to get privacy settings. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to get privacy settings. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError
@@ -127,14 +127,14 @@ class Api::V1::Evolution::PrivacyController < Api::V1::BaseController
     request['Content-Type'] = 'application/json'
     request.body = request_body.to_json
 
-    Rails.logger.info "Evolution API: Update privacy body: #{request.body}"
+    Rails.logger.info "Evolution API: Update privacy body: [FILTERED]"
 
     response = http.request(request)
-    Rails.logger.info "Evolution API: Update privacy response #{response.code}: #{response.body}"
+    Rails.logger.info "Evolution API: Update privacy response #{response.code}: [FILTERED]"
 
     unless response.is_a?(Net::HTTPSuccess)
-      Rails.logger.error "Evolution API: Update privacy FAILED — Status: #{response.code}, Body: #{response.body}, Sent body: #{request_body.to_json}"
-      raise "Failed to update privacy settings. Status: #{response.code}, Body: #{response.body}"
+      Rails.logger.error "Evolution API: Update privacy FAILED — Status: #{response.code}, Body: [FILTERED], Sent body: [FILTERED]"
+      raise "Failed to update privacy settings. Status: #{response.code}"
     end
 
     JSON.parse(response.body)

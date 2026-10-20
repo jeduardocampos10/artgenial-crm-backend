@@ -26,13 +26,13 @@ class Api::V1::Evolution::ProxiesController < Api::V1::BaseController
         render json: { error: "Channel not found for instance: #{instance_name}" }, status: :not_found
       end
     rescue StandardError => e
-      Rails.logger.error "Evolution API get proxy error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API get proxy error: #{e.class} - #{e.class}"
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end
 
   def create
-    Rails.logger.info "Evolution API proxy configuration called with params: #{params.inspect}"
+    Rails.logger.info "Evolution API proxy configuration called with params: [FILTERED]"
 
     begin
       # Extract parameters
@@ -55,7 +55,7 @@ class Api::V1::Evolution::ProxiesController < Api::V1::BaseController
         result: result
       }
     rescue StandardError => e
-      Rails.logger.error "Evolution API proxy configuration error: #{e.class} - #{e.message}"
+      Rails.logger.error "Evolution API proxy configuration error: #{e.class} - #{e.class}"
       Rails.logger.error e.backtrace.join("\n")
       render json: { error: e.message }, status: :unprocessable_entity
     end
@@ -94,9 +94,9 @@ class Api::V1::Evolution::ProxiesController < Api::V1::BaseController
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Get proxy response code: #{response.code}"
-    Rails.logger.info "Evolution API: Get proxy response body: #{response.body}"
+    Rails.logger.info "Evolution API: Get proxy response body: [FILTERED]"
 
-    raise "Failed to get proxy settings. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to get proxy settings. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     # Extract proxy-related settings from the response
     data = JSON.parse(response.body)
@@ -110,10 +110,10 @@ class Api::V1::Evolution::ProxiesController < Api::V1::BaseController
       username: proxy_data['username']
     }
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Get proxy JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Get proxy JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API get proxy endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Get proxy connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Get proxy connection error: #{e.class} - #{e.class}"
     raise "Failed to get proxy settings: #{e.message}"
   end
 
@@ -145,21 +145,21 @@ class Api::V1::Evolution::ProxiesController < Api::V1::BaseController
     request['Content-Type'] = 'application/json'
     request.body = proxy_body.to_json
 
-    Rails.logger.info "Evolution API: Proxy request headers: #{request.to_hash}"
-    Rails.logger.info "Evolution API: Proxy request body: #{request.body}"
+    Rails.logger.info "Evolution API: Proxy request headers: [FILTERED]"
+    Rails.logger.info "Evolution API: Proxy request body: [FILTERED]"
 
     response = http.request(request)
     Rails.logger.info "Evolution API: Proxy response code: #{response.code}"
-    Rails.logger.info "Evolution API: Proxy response body: #{response.body}"
+    Rails.logger.info "Evolution API: Proxy response body: [FILTERED]"
 
-    raise "Failed to set proxy. Status: #{response.code}, Body: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+    raise "Failed to set proxy. Status: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   rescue JSON::ParserError => e
-    Rails.logger.error "Evolution API: Proxy JSON parse error: #{e.message}, Body: #{response&.body}"
+    Rails.logger.error "Evolution API: Proxy JSON parse error: #{e.class}, Body: [FILTERED]"
     raise 'Invalid response from Evolution API proxy endpoint'
   rescue StandardError => e
-    Rails.logger.error "Evolution API: Proxy connection error: #{e.class} - #{e.message}"
+    Rails.logger.error "Evolution API: Proxy connection error: #{e.class} - #{e.class}"
     raise "Failed to set proxy: #{e.message}"
   end
 end
