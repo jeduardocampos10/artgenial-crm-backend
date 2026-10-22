@@ -1,0 +1,134 @@
+schema_version: 1
+template_key: artgenial.base
+version: '1'
+name: ArtGenial Base
+description: Pipelines e etiquetas universais ArtGenial v1
+pipelines:
+  - key: sales
+    name: Vendas — Funil Comercial
+    pipeline_type: sales
+    visibility: public
+    is_default: true
+    stages:
+      - { key: novo_lead, name: Novo Lead, position: 1, stage_type: active }
+      - { key: primeiro_atendimento, name: Primeiro Atendimento, position: 2, stage_type: active }
+      - { key: qualificacao, name: Qualificação, position: 3, stage_type: active }
+      - { key: oportunidade, name: Oportunidade, position: 4, stage_type: active }
+      - { key: proposta, name: Proposta, position: 5, stage_type: active }
+      - { key: negociacao, name: Negociação, position: 6, stage_type: active }
+      - { key: followup_1d, name: Follow-up 1D, position: 7, stage_type: active }
+      - { key: followup_5d, name: Follow-up 5D, position: 8, stage_type: active }
+      - { key: followup_15d, name: Follow-up 15D, position: 9, stage_type: active }
+      - { key: followup_30d, name: Follow-up 30D, position: 10, stage_type: active }
+      - { key: abandono_30_plus, name: Abandono 30+, position: 11, stage_type: active }
+      - { key: ganho, name: Ganho, position: 12, stage_type: completed }
+      - { key: perdido, name: Perdido, position: 13, stage_type: cancelled }
+  - key: customer_service
+    name: Atendimento — Relacionamento
+    pipeline_type: custom
+    visibility: public
+    is_default: false
+    stages:
+      - { key: novo_atendimento, name: Novo Atendimento, position: 1, stage_type: active }
+      - { key: triagem, name: Triagem, position: 2, stage_type: active }
+      - { key: em_atendimento, name: Em Atendimento, position: 3, stage_type: active }
+      - { key: aguardando_cliente, name: Aguardando Cliente, position: 4, stage_type: active }
+      - { key: aguardando_empresa, name: Aguardando Empresa, position: 5, stage_type: active }
+      - { key: encaminhado, name: Encaminhado, position: 6, stage_type: active }
+      - { key: resolvido, name: Resolvido, position: 7, stage_type: active }
+      - { key: finalizado, name: Finalizado, position: 8, stage_type: active }
+  - key: support
+    name: Suporte — Pós-venda
+    pipeline_type: support
+    visibility: public
+    is_default: false
+    stages:
+      - { key: novo_chamado, name: Novo Chamado, position: 1, stage_type: active }
+      - { key: triagem, name: Triagem, position: 2, stage_type: active }
+      - { key: em_analise, name: Em Análise, position: 3, stage_type: active }
+      - { key: em_atendimento, name: Em Atendimento, position: 4, stage_type: active }
+      - { key: aguardando_cliente, name: Aguardando Cliente, position: 5, stage_type: active }
+      - { key: aguardando_terceiro, name: Aguardando Terceiro, position: 6, stage_type: active }
+      - { key: solucao_aplicada, name: Solução Aplicada, position: 7, stage_type: active }
+      - { key: validacao_cliente, name: Validação Cliente, position: 8, stage_type: active }
+      - { key: resolvido, name: Resolvido, position: 9, stage_type: active }
+      - { key: reaberto, name: Reaberto, position: 10, stage_type: active }
+  - key: complaints_cancellation
+    name: Reclamações e Cancelamento
+    pipeline_type: custom
+    visibility: public
+    is_default: false
+    stages:
+      - { key: nova_solicitacao, name: Nova Solicitação, position: 1, stage_type: active }
+      - { key: analise, name: Análise, position: 2, stage_type: active }
+      - { key: risco_cancelamento, name: Risco de Cancelamento, position: 3, stage_type: active }
+      - { key: tentativa_retencao, name: Tentativa de Retenção, position: 4, stage_type: active }
+      - { key: proposta_retencao, name: Proposta de Retenção, position: 5, stage_type: active }
+      - { key: retido, name: Retido, position: 6, stage_type: active }
+      - { key: cancelamento_solicitado, name: Cancelamento Solicitado, position: 7, stage_type: active }
+      - { key: cancelado, name: Cancelado, position: 8, stage_type: active }
+      - { key: pos_cancelamento, name: Pós-cancelamento, position: 9, stage_type: active }
+  - key: marketing
+    name: Marketing — Nutrição
+    pipeline_type: marketing
+    visibility: public
+    is_default: false
+    stages:
+      - { key: lead_capturado, name: Lead Capturado, position: 1, stage_type: active }
+      - { key: novo_lead, name: Novo Lead, position: 2, stage_type: active }
+      - { key: nutricao, name: Nutrição, position: 3, stage_type: active }
+      - { key: engajado, name: Engajado, position: 4, stage_type: active }
+      - { key: interessado, name: Interessado, position: 5, stage_type: active }
+      - { key: mql, name: MQL, position: 6, stage_type: active }
+      - { key: enviado_vendas, name: Enviado para Vendas, position: 7, stage_type: active }
+      - { key: reengajamento_15d, name: Reengajamento 15D, position: 8, stage_type: active }
+      - { key: reengajamento_30d, name: Reengajamento 30D, position: 9, stage_type: active }
+      - { key: inativo_30_plus, name: Inativo 30+, position: 10, stage_type: active }
+      - { key: desqualificado, name: Desqualificado, position: 11, stage_type: active }
+  - key: customer_success
+    name: Pós-venda — Customer Success
+    pipeline_type: onboarding
+    visibility: public
+    is_default: false
+    stages:
+      - { key: novo_cliente, name: Novo Cliente, position: 1, stage_type: active }
+      - { key: onboarding, name: Onboarding, position: 2, stage_type: active }
+      - { key: acompanhamento, name: Acompanhamento, position: 3, stage_type: active }
+      - { key: cliente_ativo, name: Cliente Ativo, position: 4, stage_type: active }
+      - { key: oportunidade_recompra, name: Oportunidade de Recompra, position: 5, stage_type: active }
+      - { key: upsell_cross_sell, name: Upsell / Cross-sell, position: 6, stage_type: active }
+      - { key: cliente_recorrente, name: Cliente Recorrente, position: 7, stage_type: active }
+      - { key: cliente_vip, name: Cliente VIP, position: 8, stage_type: active }
+      - { key: em_risco, name: Em Risco, position: 9, stage_type: active }
+      - { key: recuperacao, name: Recuperação, position: 10, stage_type: active }
+      - { key: inativo, name: Inativo, position: 11, stage_type: active }
+labels:
+  - { key: origem_whatsapp, title: origem-whatsapp, category: origem, color: '#2563EB' }
+  - { key: origem_site, title: origem-site, category: origem, color: '#2563EB' }
+  - { key: origem_instagram, title: origem-instagram, category: origem, color: '#2563EB' }
+  - { key: origem_facebook, title: origem-facebook, category: origem, color: '#2563EB' }
+  - { key: origem_google, title: origem-google, category: origem, color: '#2563EB' }
+  - { key: origem_indicacao, title: origem-indicacao, category: origem, color: '#2563EB' }
+  - { key: novo_lead, title: novo-lead, category: comercial, color: '#F59E0B' }
+  - { key: lead_quente, title: lead-quente, category: comercial, color: '#F59E0B' }
+  - { key: lead_morno, title: lead-morno, category: comercial, color: '#F59E0B' }
+  - { key: lead_frio, title: lead-frio, category: comercial, color: '#F59E0B' }
+  - { key: orcamento_enviado, title: orcamento-enviado, category: comercial, color: '#F59E0B' }
+  - { key: negociacao, title: negociacao, category: comercial, color: '#F59E0B' }
+  - { key: cliente, title: cliente, category: comercial, color: '#F59E0B' }
+  - { key: primeira_compra, title: primeira-compra, category: relacionamento, color: '#10B981' }
+  - { key: recorrente, title: recorrente, category: relacionamento, color: '#10B981' }
+  - { key: vip, title: vip, category: relacionamento, color: '#10B981' }
+  - { key: inativo, title: inativo, category: relacionamento, color: '#10B981' }
+  - { key: reativacao, title: reativacao, category: relacionamento, color: '#10B981' }
+  - { key: urgente, title: urgente, category: atendimento, color: '#EF4444' }
+  - { key: reclamacao, title: reclamacao, category: atendimento, color: '#EF4444' }
+  - { key: suporte, title: suporte, category: atendimento, color: '#EF4444' }
+  - { key: cancelamento, title: cancelamento, category: atendimento, color: '#EF4444' }
+  - { key: retencao, title: retencao, category: atendimento, color: '#EF4444' }
+  - { key: ganho, title: ganho, category: resultado, color: '#16A34A' }
+  - { key: perdido, title: perdido, category: resultado, color: '#DC2626' }
+  - { key: recuperado, title: recuperado, category: resultado, color: '#0D9488' }
+  - { key: atendimento_ia, title: atendimento-ia, category: ia, color: '#8B5CF6' }
+  - { key: escalado_humano, title: escalado-humano, category: ia, color: '#8B5CF6' }
+  - { key: revisao_humana, title: revisao-humana, category: ia, color: '#8B5CF6' }
