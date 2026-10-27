@@ -66,11 +66,14 @@ class Contact < ApplicationRecord
   has_many :messages, as: :sender, dependent: :destroy_async
   has_many :notes, dependent: :destroy_async
   has_many :pipeline_items, dependent: :destroy_async
+  has_many :contact_identities, dependent: :restrict_with_exception
+  has_many :memory_records, dependent: :restrict_with_exception
+  has_many :customer_events, dependent: :restrict_with_exception
 
   has_many :contact_companies, dependent: :destroy
   has_many :companies, through: :contact_companies, source: :company
 
-  has_many :company_contacts, class_name: 'ContactCompany', foreign_key: 'company_id', dependent: :nullify, inverse_of: :company
+  has_many :company_contacts, class_name: 'ContactCompany', foreign_key: 'company_id', dependent: :restrict_with_exception, inverse_of: :company
   has_many :comp_contacts, through: :company_contacts, source: :contact
   after_initialize :set_default_location
   before_validation :prepare_contact_attributes, :ensure_location_present

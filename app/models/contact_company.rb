@@ -22,14 +22,19 @@
 #
 class ContactCompany < ApplicationRecord
   include Wisper::Publisher
+  include CustomerDataGuard
 
   belongs_to :contact
   belongs_to :company, class_name: 'Contact'
+  has_many :memory_records, dependent: :restrict_with_exception
 
   # Validations
   validates :contact_id, presence: true
   validates :company_id, presence: true
   validates :contact_id, uniqueness: { scope: :company_id }
+  validates :status, inclusion: { in: %w[active inactive contested] }
+  validates :relationship_type, :commercial_role, length: { maximum: 120 }, allow_nil: true
+  validate :valid_period, :metadata_safe
   validate :contact_must_be_person
   validate :company_must_be_company
   validate :cannot_link_to_self
@@ -39,6 +44,14 @@ class ContactCompany < ApplicationRecord
   scope :active, -> { where(deleted_at: nil) }
 
   private
+
+  def valid_period
+    errors.add(:valid_until, 'must follow valid_from') if valid_until && valid_from && valid_until <= valid_from
+  end
+
+  def metadata_safe
+    validate_structured_data(:metadata)
+  end
 
   def contact_must_be_person
     return unless contact

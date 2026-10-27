@@ -1,4 +1,5 @@
 class ContactMergeAction
+  class MergeBlocked < StandardError; end
   include Events::Types
   pattr_initialize [:base_contact!, :mergee_contact!, { account: nil }]
 
@@ -8,6 +9,7 @@ class ContactMergeAction
     return @base_contact if base_contact.id == mergee_contact.id
 
     ActiveRecord::Base.transaction do
+      Contact.lock.where(id: [base_contact.id, mergee_contact.id]).order(:id).load
       validate_contacts
       merge_conversations
       merge_messages
@@ -21,9 +23,18 @@ class ContactMergeAction
   private
 
   def validate_contacts
+    if [base_contact, mergee_contact].any? { |contact| protected_memory_associations?(contact) } ||
+       PipelineItem.where(contact_id: mergee_contact.id).exists? ||
+       ContactCompany.where(contact_id: mergee_contact.id).or(ContactCompany.where(company_id: mergee_contact.id)).exists?
+      raise MergeBlocked, 'contact merge requires explicit memory, relationship or pipeline reconciliation'
+    end
     return if belongs_to_account?(@base_contact) && belongs_to_account?(@mergee_contact)
 
     raise StandardError, 'contact does not belong to the account'
+  end
+
+  def protected_memory_associations?(contact)
+    contact.contact_identities.exists? || contact.memory_records.exists? || contact.customer_events.exists?
   end
 
   def belongs_to_account?(_contact)

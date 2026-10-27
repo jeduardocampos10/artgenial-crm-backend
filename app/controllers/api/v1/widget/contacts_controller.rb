@@ -8,12 +8,14 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
   end
 
   def set_user
-    @contact_inbox.update!(hmac_verified: true) if should_verify_hmac? && valid_hmac?
+    ActiveRecord::Base.transaction do
+      @contact_inbox.update!(hmac_verified: true) if should_verify_hmac? && valid_hmac?
 
-    # Preserve the current widget session (source_id/token) when identifier changes.
-    # Identity updates/merges should happen on the current contact instead of creating
-    # a new contact_inbox session, preventing conversation history fragmentation.
-    identify_contact(@contact)
+      # Preserve the current widget session (source_id/token) when identifier changes.
+      # Identity updates/merges should happen on the current contact instead of creating
+      # a new contact_inbox session, preventing conversation history fragmentation.
+      identify_contact(@contact)
+    end
   end
 
   # TODO : clean up this with proper routes delete contacts/custom_attributes

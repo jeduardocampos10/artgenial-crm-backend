@@ -14,6 +14,8 @@ class Api::V1::Actions::ContactMergesController < Api::V1::BaseController
       mergee_contact: @mergee_contact
     )
     contact_merge_action.perform
+  rescue ContactMergeAction::MergeBlocked => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private

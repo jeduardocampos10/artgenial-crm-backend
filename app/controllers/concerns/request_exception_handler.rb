@@ -3,9 +3,19 @@ module RequestExceptionHandler
 
   included do
     rescue_from ActiveRecord::RecordInvalid, with: :render_record_invalid
+    rescue_from ContactMergeAction::MergeBlocked, with: :render_contact_merge_blocked
   end
 
   private
+
+  def render_contact_merge_blocked(_exception)
+    message = 'Contact identification requires review before these contacts can be merged'
+    if respond_to?(:error_response)
+      error_response(ApiErrorCodes::VALIDATION_ERROR, message, status: :unprocessable_entity)
+    else
+      render json: { error: message }, status: :unprocessable_entity
+    end
+  end
 
   def handle_with_exception
     yield

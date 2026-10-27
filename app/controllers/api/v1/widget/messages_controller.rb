@@ -24,15 +24,19 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
 
   def update
     if @message.content_type == 'input_email'
-      @message.update!(submitted_email: contact_email)
-      ContactIdentifyAction.new(
-        contact: @contact,
-        params: { email: contact_email, name: contact_name },
-        retain_original_contact_name: true
-      ).perform
+      ActiveRecord::Base.transaction do
+        @message.update!(submitted_email: contact_email)
+        ContactIdentifyAction.new(
+          contact: @contact,
+          params: { email: contact_email, name: contact_name },
+          retain_original_contact_name: true
+        ).perform
+      end
     else
       @message.update!(message_update_params[:message])
     end
+  rescue ContactMergeAction::MergeBlocked
+    render_contact_merge_blocked(nil)
   rescue StandardError => e
     render json: { error: @contact.errors, message: e.message }.to_json, status: :internal_server_error
   end
