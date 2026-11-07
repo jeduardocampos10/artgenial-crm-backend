@@ -232,6 +232,7 @@ Rails.application.routes.draw do
           resources :conversations, only: [:index]
           resources :contact_inboxes, only: [:create]
           resources :labels, only: [:create, :index]
+          resources :memories, only: [:index]
           resources :notes
         end
       end
