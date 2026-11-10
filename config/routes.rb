@@ -92,6 +92,7 @@ Rails.application.routes.draw do
 
       resource :dashboard, only: [], controller: 'dashboard' do
         get :customer
+        get :daily_summary
       end
 
       resources :inboxes, only: [:index, :show, :create, :update, :destroy], controller: 'inboxes' do
