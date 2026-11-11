@@ -22,15 +22,17 @@ RSpec.describe AddUniqueInboxSourceIdToMessages, type: :migration do
 
       migration.up
 
-      expect(connection).to have_received(:add_index).with(
-        :messages,
-        %i[inbox_id source_id],
-        unique: true,
-        name: described_class::INDEX_NAME,
-        where: described_class::INDEX_PREDICATE,
-        algorithm: :concurrently,
-        if_not_exists: true
-      )
+      expect(connection).to have_received(:add_index) do |table, columns, **options|
+        expect(table).to eq('messages')
+        expect(columns).to eq(%i[inbox_id source_id])
+        expect(options).to eq(
+          unique: true,
+          name: described_class::INDEX_NAME,
+          where: described_class::INDEX_PREDICATE,
+          algorithm: :concurrently,
+          if_not_exists: true
+        )
+      end
     end
 
     it 'aborts on duplicate identities without deleting or rewriting data' do
