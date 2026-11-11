@@ -77,7 +77,7 @@ jobs:
           bundle exec rspec \
             spec/migrations/add_unique_inbox_source_id_to_messages_spec.rb \
             --format documentation 2>&1 | tee /tmp/evolution-migration-spec.log || {
-              tail -n 80 /tmp/evolution-migration-spec.log | sed 's/^/::error::/'
+              ruby -e 's = File.readlines(ARGV[0]).last(100).join; s = s.gsub("%", "%25").gsub("\r", "%0D").gsub("\n", "%0A"); puts "::error title=Migration spec failure::#{s}"' /tmp/evolution-migration-spec.log
               exit 1
             }
 
