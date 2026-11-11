@@ -1,0 +1,70 @@
+name: Supervised pilot gate
+
+on:
+  pull_request:
+    branches: [artgenial/develop]
+
+permissions:
+  contents: read
+
+env:
+  RAILS_ENV: test
+  ENCRYPTION_KEY: test-encryption-key-for-fernet!!
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
+  POSTGRES_USERNAME: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DATABASE: evolution_test
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  evolution-webhook-safety:
+    name: Evolution webhook, idempotency and migration gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: evolution_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.4'
+          bundler-cache: true
+
+      - name: Prepare test database
+        run: bundle exec rails db:prepare
+
+      - name: Run supervised Evolution safety specs
+        run: |
+          bundle exec rspec \
+            spec/services/whatsapp/evolution_handlers/messages_upsert_guard_spec.rb \
+            spec/migrations/add_unique_inbox_source_id_to_messages_spec.rb \
+            --format progress
+
+      - name: Verify migrations are deployable
+        run: bundle exec rails db:migrate
