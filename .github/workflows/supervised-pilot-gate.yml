@@ -20,7 +20,9 @@ env:
 jobs:
   evolution-webhook-safety:
     name: Evolution webhook, idempotency and migration gate
-    runs-on: ubuntu-latest
+    # Ruby 3.4.4 is pinned by the application and is available on this image.
+    # ubuntu-latest moved to 26.04, which only publishes the newest 3.4 patch.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     services:
