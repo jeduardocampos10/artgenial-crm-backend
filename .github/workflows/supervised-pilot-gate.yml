@@ -61,12 +61,26 @@ jobs:
       - name: Prepare test database
         run: bundle exec rails db:prepare
 
-      - name: Run supervised Evolution safety specs
+      - name: Verify Evolution message idempotency
         run: |
+          set -o pipefail
           bundle exec rspec \
             spec/services/whatsapp/evolution_handlers/messages_upsert_guard_spec.rb \
+            --format documentation 2>&1 | tee /tmp/evolution-message-spec.log || {
+              tail -n 80 /tmp/evolution-message-spec.log | sed 's/^/::error::/'
+              exit 1
+            }
+
+      - name: Verify idempotency migration preflight
+        run: |
+          set -o pipefail
+          bundle exec rspec \
             spec/migrations/add_unique_inbox_source_id_to_messages_spec.rb \
-            --format progress
+            --format documentation 2>&1 | tee /tmp/evolution-migration-spec.log || {
+              tail -n 80 /tmp/evolution-migration-spec.log | sed 's/^/::error::/'
+              exit 1
+            }
 
       - name: Verify migrations are deployable
+        if: ${{ always() }}
         run: bundle exec rails db:migrate
