@@ -27,8 +27,7 @@ class AgentBots::HttpRequestService
       return
     end
 
-    Rails.logger.info "[AgentBot HTTP] Starting request to bot: #{@agent_bot.name}"
-    Rails.logger.info "[AgentBot HTTP] Outgoing URL: #{@agent_bot.outgoing_url}"
+    Rails.logger.info "[AgentBot HTTP] Starting request agent_bot_id=#{@agent_bot.id}"
     # Reports the credential the request will ACTUALLY use, not the inline column:
     # for a bot that references the vault, the old lines said "no key" while the
     # request went out authenticated (and vice versa after retirement).
@@ -39,9 +38,7 @@ class AgentBots::HttpRequestService
       Rails.logger.info "[AgentBot HTTP] ✅ Request successful: #{response.code} #{response.message}"
       handle_response(response)
     rescue StandardError => e
-      Rails.logger.error "[AgentBot HTTP] ❌ Error: #{e.message}"
-      Rails.logger.error "[AgentBot HTTP] Error class: #{e.class}"
-      Rails.logger.error "[AgentBot HTTP] Backtrace: #{e.backtrace.first(10).join("\n")}"
+      Rails.logger.error "[AgentBot HTTP] Request failed error_type=#{e.class}"
     end
   end
 
@@ -74,10 +71,11 @@ class AgentBots::HttpRequestService
   end
 
   def make_http_request
-    uri = URI(@agent_bot.outgoing_url)
-    Rails.logger.info "[AgentBot HTTP] Making request to: #{uri.host}:#{uri.port}#{uri.path}"
+    destination = Security::OutboundUrlPolicy.validate!(@agent_bot.outgoing_url)
+    uri = destination.uri
+    Rails.logger.info "[AgentBot HTTP] Dispatch destination_host=#{uri.host}"
 
-    http = setup_http_client(uri)
+    http = setup_http_client(uri, destination.ip_address)
     request = build_http_request(uri)
 
     log_request_details(request)
@@ -88,17 +86,16 @@ class AgentBots::HttpRequestService
 
     # Raise error for non-2xx responses
     if response.code.to_i >= 400
-      error_msg = "HTTP #{response.code}: #{response.message}"
-      error_msg += " - #{response.body}" if response.body.present?
-      Rails.logger.error "[AgentBot HTTP] Request failed: #{error_msg}"
-      raise StandardError.new(error_msg)
+      Rails.logger.error "[AgentBot HTTP] Request rejected status=#{response.code}"
+      raise StandardError, "Agent bot endpoint returned HTTP #{response.code}"
     end
 
     response
   end
 
-  def setup_http_client(uri)
+  def setup_http_client(uri, ip_address)
     http = Net::HTTP.new(uri.host, uri.port)
+    http.ipaddr = ip_address
     http.use_ssl = uri.scheme == 'https'
     http.read_timeout = 120
     http.open_timeout = 10
@@ -125,20 +122,13 @@ class AgentBots::HttpRequestService
   end
 
   def log_request_details(request)
-    Rails.logger.debug { "[AgentBot HTTP] Request URL: #{@agent_bot.outgoing_url}" }
-    Rails.logger.debug { "[AgentBot HTTP] Request Headers: #{request.to_hash}" }
-    Rails.logger.debug { "[AgentBot HTTP] Request Body: #{request.body}" }
+    Rails.logger.debug do
+      "[AgentBot HTTP] Dispatch header_names=#{request.to_hash.keys.sort.join(',')} body_bytes=#{request.body.to_s.bytesize}"
+    end
   end
 
   def log_response_details(response)
-    Rails.logger.info "[AgentBot HTTP] Response Status: #{response.code} #{response.message}"
-    Rails.logger.info "[AgentBot HTTP] Response Headers: #{response.to_hash.inspect}"
-
-    if response.code.to_i >= 400
-      Rails.logger.error "[AgentBot HTTP] ❌ Error Response Body: #{response.body}"
-    else
-      Rails.logger.debug { "[AgentBot HTTP] Response Body: #{response.body}" }
-    end
+    Rails.logger.info "[AgentBot HTTP] Response status=#{response.code} body_bytes=#{response.body.to_s.bytesize}"
   end
 
   def build_jsonrpc_payload

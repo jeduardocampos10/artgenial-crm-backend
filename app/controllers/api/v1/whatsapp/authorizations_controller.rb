@@ -11,7 +11,7 @@ class Api::V1::Whatsapp::AuthorizationsController < Api::V1::BaseController
   
 
   def create
-    Rails.logger.info "WhatsApp authorization controller called with params: #{params.inspect}"
+    Rails.logger.info 'WhatsApp authorization started'
 
     return render_missing_params_error unless valid_params?
 
@@ -20,7 +20,7 @@ class Api::V1::Whatsapp::AuthorizationsController < Api::V1::BaseController
       business_data, phones_data = fetch_business_and_phone_data(access_token)
       response_data = build_response_data(access_token, business_data, phones_data)
 
-      Rails.logger.info "Sending successful response with data: #{response_data.inspect}"
+      Rails.logger.info 'WhatsApp authorization completed successfully'
       success_response(data: response_data, message: 'WhatsApp authorization completed successfully')
     rescue StandardError => e
       handle_authorization_error(e)
@@ -67,7 +67,7 @@ class Api::V1::Whatsapp::AuthorizationsController < Api::V1::BaseController
     response = HTTParty.post(token_exchange_url, token_exchange_request_options)
     log_token_response(response)
 
-    raise StandardError, "Failed to exchange code: #{response.body}" unless response.success?
+    raise StandardError, "Facebook token exchange failed with HTTP #{response.code}" unless response.success?
 
     response.parsed_response['access_token']
   end
@@ -93,8 +93,7 @@ class Api::V1::Whatsapp::AuthorizationsController < Api::V1::BaseController
   end
 
   def log_token_response(response)
-    Rails.logger.info "Facebook token response status: #{response.code}"
-    Rails.logger.info "Facebook token response body: #{response.body}"
+    Rails.logger.info "Facebook token response status=#{response.code}"
   end
 
   def fetch_business_and_phone_data(access_token)
@@ -138,8 +137,8 @@ class Api::V1::Whatsapp::AuthorizationsController < Api::V1::BaseController
 
   def log_api_response_errors(business_response, phones_response)
     Rails.logger.error 'Failed to fetch business details or phone numbers'
-    Rails.logger.error "Business response: #{business_response.code} - #{business_response.body}"
-    Rails.logger.error "Phones response: #{phones_response.code} - #{phones_response.body}"
+    Rails.logger.error "Business response status=#{business_response.code}"
+    Rails.logger.error "Phones response status=#{phones_response.code}"
   end
 
   def build_response_data(access_token, business_data, phones_data)
@@ -157,8 +156,7 @@ class Api::V1::Whatsapp::AuthorizationsController < Api::V1::BaseController
   end
 
   def handle_authorization_error(error)
-    Rails.logger.error "Exception in WhatsApp authorization: #{error.class} - #{error.message}"
-    Rails.logger.error error.backtrace.join("\n")
+    Rails.logger.error "WhatsApp authorization failed error_type=#{error.class}"
     error_response(ApiErrorCodes::INTERNAL_ERROR, 'Internal server error', status: :internal_server_error)
   end
 

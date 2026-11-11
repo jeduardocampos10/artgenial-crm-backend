@@ -14,17 +14,15 @@ class AgentBots::SegmentedMessageCreator
   def create_messages(segments, conversation, force: false)
     return if segments.empty?
 
-    # Verifica se a conversa é elegível para resposta do bot (a menos que force seja true)
-    unless force
-      unless conversation_eligible_for_bot_reply?(conversation)
-        Rails.logger.debug { "[AgentBot Segmented] Conversation #{conversation.id} not eligible (status: #{conversation.status})" }
-        # If not eligible and not forced, try with force anyway (for final responses after transfer)
-        Rails.logger.info "[AgentBot Segmented] Attempting force create for conversation #{conversation.id}"
-        return create_messages(segments, conversation, force: true)
+    # Human ownership is a hard boundary. The legacy force argument remains for
+    # call compatibility but can no longer bypass the eligibility decision.
+    unless conversation_eligible_for_bot_reply?(conversation)
+      Rails.logger.debug do
+        "[AgentBot Segmented] Reply discarded conversation=#{conversation.id} status=#{conversation.status}"
       end
-    else
-      Rails.logger.info "[AgentBot Segmented] Force creating messages (skipping eligibility check) for conversation #{conversation.id}"
+      return
     end
+    Rails.logger.warn('[AgentBot Segmented] Ignoring unsafe force option') if force
 
     # Se não tem segmentação habilitada ou só tem um segmento, cria uma mensagem normal
     if !@agent_bot.text_segmentation_enabled || segments.length == 1
