@@ -117,6 +117,9 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
     # Get webhook URL (following Evolution pattern)
     webhook_url_value = webhook_url
 
+    webhook_secret = ENV['EVOLUTION_WEBHOOK_SECRET'].to_s
+    raise 'EVOLUTION_WEBHOOK_SECRET must contain at least 32 bytes' if webhook_secret.bytesize < 32
+
     # Webhook events - fixed list as per Evolution v2 specification
     webhook_events = [
       'CONNECTION_UPDATE',     # Connection status changes
@@ -143,7 +146,10 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
         url: webhook_url_value,
         byEvents: false,
         base64: true,
-        events: webhook_events
+        events: webhook_events,
+        headers: {
+          jwt_key: webhook_secret
+        }
       }
     }
 

@@ -1,91 +1,118 @@
 # frozen_string_literal: true
 
-begin
-  require 'rails_helper'
-rescue LoadError
-  RSpec.describe 'Whatsapp::EvolutionHandlers::MessagesUpsert' do
-    it 'has spec scaffold ready' do
-      skip 'rails_helper is not available in this workspace snapshot'
-    end
-  end
-end
+require 'rails_helper'
 
-return unless defined?(Rails)
-
-# Same dedup guard as the Cloud API service, and it used to leak the same way:
-# released on the last line of the happy path, so a raise before it pinned the
-# Redis key for its full one-day TTL and every retry was discarded silently.
 RSpec.describe Whatsapp::EvolutionHandlers::MessagesUpsert do
-  let(:guard_key) { format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: 'evo.race') }
-  let(:fake_alfred) { {} }
-  let(:inbox) { instance_double(Inbox) }
+  let(:inbox) { instance_double(Inbox, id: 'inbox-1') }
   let(:params) { { event: 'messages.upsert', data: { key: { id: 'evo.race' } } } }
-  # The module leans on set_conversation, which lives up in the base service, so the
-  # real Evolution service is the host that exercises it.
   let(:host) { Whatsapp::IncomingMessageEvolutionService.new(inbox: inbox, params: params) }
+  let(:fake_alfred) { {} }
 
   before do
-    # In-memory Alfred (repo convention) so the real cache/clear helpers run and
-    # the assertions are about the key itself, not about the call site.
-    allow(Redis::Alfred).to receive(:setex) { |key, value, _expiry = nil| fake_alfred[key] = value }
-    allow(Redis::Alfred).to receive(:get) { |key| fake_alfred[key] }
-    allow(Redis::Alfred).to receive(:delete) { |key| fake_alfred.delete(key) }
+    allow(Redis::Alfred).to receive(:set) do |key, value, nx:, ex:|
+      expect(nx).to be(true)
+      expect(ex).to eq(described_class::EVOLUTION_MESSAGE_GUARD_TTL)
+      next false if fake_alfred.key?(key)
 
-    # evolution_api? reads @processed_params directly, and #perform is what memoizes
-    # it - handle_message is driven here without going through #perform.
+      fake_alfred[key] = value
+      'OK'
+    end
+    allow(Redis::Alfred).to receive(:delete_if_value) do |key, value|
+      fake_alfred.delete(key) if fake_alfred[key] == value
+    end
+
     host.send(:processed_params)
+    host.instance_variable_set(:@raw_message, params[:data])
     allow(host).to receive(:message_type).and_return('text')
     allow(host).to receive(:message_processable?).and_return(true)
     allow(host).to receive(:raw_message_id).and_return('evo.race')
+    allow(host).to receive(:find_evolution_message_by_source_id).and_return(nil)
   end
 
-  describe '#handle_message dedup guard release' do
-    it 'releases the guard when set_contact raises, and still lets the exception reach Sidekiq' do
-      allow(host).to receive(:set_contact) do
-        expect(fake_alfred).to include(guard_key)
-        raise ActiveRecord::RecordNotUnique, 'duplicate key'
-      end
+  describe 'the Redis contention guard' do
+    it 'acquires the inbox-scoped lease with one atomic SET NX EX' do
+      expect(host.send(:acquire_evolution_message_guard)).to be(true)
 
-      expect { host.send(:handle_message) }.to raise_error(ActiveRecord::RecordNotUnique)
+      expect(Redis::Alfred).to have_received(:set).with(
+        host.send(:evolution_message_guard_key),
+        kind_of(String),
+        nx: true,
+        ex: described_class::EVOLUTION_MESSAGE_GUARD_TTL
+      ).once
+    end
+
+    it 'does not acquire an identity already owned by another worker' do
+      expect(host.send(:acquire_evolution_message_guard)).to be(true)
+      contender = Whatsapp::IncomingMessageEvolutionService.new(inbox: inbox, params: params)
+      contender.instance_variable_set(:@raw_message, params[:data])
+      allow(contender).to receive(:raw_message_id).and_return('evo.race')
+
+      expect(contender.send(:acquire_evolution_message_guard)).to be(false)
+    end
+
+    it 'does not collide when two inboxes receive the same provider source id' do
+      expect(host.send(:acquire_evolution_message_guard)).to be(true)
+      other_inbox = instance_double(Inbox, id: 'inbox-2')
+      other = Whatsapp::IncomingMessageEvolutionService.new(inbox: other_inbox, params: params)
+      other.instance_variable_set(:@raw_message, params[:data])
+      allow(other).to receive(:raw_message_id).and_return('evo.race')
+
+      expect(other.send(:acquire_evolution_message_guard)).to be(true)
+      expect(fake_alfred.keys.length).to eq(2)
+    end
+
+    it 'fails open when Redis is unavailable because PostgreSQL is authoritative' do
+      allow(Redis::Alfred).to receive(:set).and_raise(Redis::CannotConnectError)
+
+      expect(host.send(:acquire_evolution_message_guard)).to be(true)
+      expect(host.instance_variable_get(:@evolution_message_guard)).to be_nil
+    end
+
+    it 'releases only its own token when processing raises' do
+      allow(host).to receive(:set_contact).and_raise(ActiveRecord::RecordInvalid)
+
+      expect { host.send(:handle_message) }.to raise_error(ActiveRecord::RecordInvalid)
       expect(fake_alfred).to be_empty
+      expect(Redis::Alfred).to have_received(:delete_if_value).once
     end
 
-    it 'releases the guard when the payload carries no usable contact' do
-      allow(host).to receive(:set_contact)
+    it 'leaves an existing guard untouched when acquisition fails' do
+      expect(host.send(:acquire_evolution_message_guard)).to be(true)
+      existing = fake_alfred.dup
 
-      host.send(:handle_message)
-      expect(fake_alfred).to be_empty
+      expect(host.send(:handle_message)).to be_nil
+      expect(fake_alfred).to eq(existing)
+    end
+  end
+
+  describe 'PostgreSQL idempotency fallback' do
+    it 'looks up an existing message by inbox and source id' do
+      allow(host).to receive(:find_evolution_message_by_source_id).and_call_original
+      allow(Message).to receive(:find_by)
+
+      host.send(:find_evolution_message_by_source_id)
+
+      expect(Message).to have_received(:find_by).with(inbox_id: 'inbox-1', source_id: 'evo.race')
     end
 
-    it 'still releases the guard on the happy path' do
-      allow(host).to receive(:set_contact) do
-        expect(fake_alfred).to include(guard_key)
-        host.instance_variable_set(:@contact, instance_double(Contact))
-      end
-      allow(host).to receive(:set_conversation)
-      allow(host).to receive(:update_conversation_status_if_needed)
-      allow(host).to receive(:handle_create_message)
+    it 'treats RecordNotUnique as a redelivery only when that scoped message now exists' do
+      duplicate = instance_double(Message)
+      pending = instance_double(Message)
+      host.instance_variable_set(:@message, pending)
+      allow(pending).to receive(:save!).and_raise(ActiveRecord::RecordNotUnique)
+      allow(host).to receive(:find_evolution_message_by_source_id).and_return(duplicate)
 
-      host.send(:handle_message)
-      expect(fake_alfred).to be_empty
+      expect { host.send(:save_message_and_notify) }.not_to raise_error
+      expect(host.instance_variable_get(:@message)).to eq(duplicate)
     end
 
-    # The `ensure` must not reach the early returns above it: they exist because
-    # another worker holds the guard, and clearing it there would undo the dedup.
-    it 'leaves the guard alone when another worker is already processing the message' do
-      allow(host).to receive(:message_processable?).and_return(false)
-      fake_alfred[guard_key] = 'true'
+    it 're-raises RecordNotUnique from an unrelated constraint' do
+      pending = instance_double(Message)
+      host.instance_variable_set(:@message, pending)
+      allow(pending).to receive(:save!).and_raise(ActiveRecord::RecordNotUnique)
+      allow(host).to receive(:find_evolution_message_by_source_id).and_return(nil)
 
-      expect(host).not_to receive(:set_contact)
-      host.send(:handle_message)
-      expect(fake_alfred).to include(guard_key)
-    end
-
-    it 'does not let a Redis failure in the ensure mask the exception that killed the message' do
-      allow(host).to receive(:set_contact).and_raise(ActiveRecord::RecordNotUnique.new('duplicate key'))
-      allow(Redis::Alfred).to receive(:delete).and_raise(Redis::CannotConnectError)
-
-      expect { host.send(:handle_message) }.to raise_error(ActiveRecord::RecordNotUnique)
+      expect { host.send(:save_message_and_notify) }.to raise_error(ActiveRecord::RecordNotUnique)
     end
   end
 end

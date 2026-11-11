@@ -1,4 +1,6 @@
 require 'base64'
+require 'digest'
+require 'securerandom'
 require 'tempfile'
 
 module Whatsapp::EvolutionHandlers::MessagesUpsert
@@ -8,6 +10,8 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
   include Whatsapp::EvolutionHandlers::ContentHandlers
   include Whatsapp::EvolutionHandlers::ProfilePictureHandler
   include EvolutionHelper
+
+  EVOLUTION_MESSAGE_GUARD_TTL = 5.minutes.to_i
 
   private
 
@@ -21,7 +25,7 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
     @contact = nil
     @raw_message = message_data
 
-    Rails.logger.info "Evolution API: Processing message #{raw_message_id} (fromMe: #{!incoming?})"
+    Rails.logger.info "Evolution API: Processing message for inbox #{@inbox.id} (outgoing: #{!incoming?})"
 
     if incoming?
       handle_message
@@ -33,18 +37,18 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
 
   def handle_message
     return handle_revoke_protocol if message_type == 'protocol'
-
     return unless message_processable?
-
-    Rails.logger.info "Evolution API: Creating new message #{raw_message_id}"
-
-    cache_message_source_id_in_redis
+    return unless acquire_evolution_message_guard
 
     begin
+      # Redis is only a contention optimization and may be unavailable. Recheck
+      # PostgreSQL after acquiring the lease; the unique index remains authoritative.
+      return if find_evolution_message_by_source_id
+
       set_contact
 
       unless @contact
-        Rails.logger.warn "Evolution API: Contact not found for message: #{raw_message_id}"
+        Rails.logger.warn "Evolution API: Contact not found while processing message for inbox #{@inbox.id}"
         return
       end
 
@@ -52,7 +56,7 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
       update_conversation_status_if_needed
       handle_create_message
     ensure
-      clear_message_source_id_from_redis
+      release_evolution_message_guard
     end
   end
 
@@ -61,7 +65,7 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
   def handle_revoke_protocol
     protocol = @raw_message.dig(:message, :protocolMessage)
     source_id = revoked_message_source_id(protocol)
-    Rails.logger.info "Evolution API: Protocol message (revoked id: #{source_id.inspect}) — marking original revoked"
+    Rails.logger.info "Evolution API: Processing message revocation for inbox #{@inbox.id}"
     mark_message_revoked_by_source_id(source_id)
   end
 
@@ -75,7 +79,7 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
 
   def set_group_contact
     subject = group_subject
-    Rails.logger.debug { "Evolution API: Setting group contact - jid: #{group_jid}, subject: #{subject}" }
+    Rails.logger.debug { "Evolution API: Setting group contact for inbox #{@inbox.id}" }
 
     contact_inbox = ::ContactInboxWithContactBuilder.new(
       source_id: group_jid,
@@ -104,7 +108,7 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
     return if fallback_group_name?(subject)
     return unless @contact.name.blank? || fallback_group_name?(@contact.name)
 
-    Rails.logger.debug { "Evolution API: Updating group name #{@contact.name.inspect} -> #{subject.inspect}" }
+    Rails.logger.debug { "Evolution API: Updating group name for contact #{@contact.id}" }
     @contact.update!(name: subject)
   end
 
@@ -171,17 +175,63 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
   def save_message_and_notify
     @message.save!
 
-    Rails.logger.info "Evolution API: Message created successfully - ID: #{@message.id}, Content: #{@message.content&.truncate(100)}"
-
+    Rails.logger.info "Evolution API: Message created successfully for inbox #{@inbox.id}"
     inbox.channel.received_messages([@message], @conversation) if incoming?
+  rescue ActiveRecord::RecordNotUnique
+    # A concurrent worker can win even when Redis is unavailable or its lease
+    # expires. Swallow only the expected message identity conflict; unrelated
+    # unique violations must still reach the retry/dead-letter path.
+    existing_message = find_evolution_message_by_source_id
+    raise unless existing_message
+
+    @message = existing_message
+    Rails.logger.info "Evolution API: Duplicate message delivery ignored for inbox #{@inbox.id}"
   end
 
   def message_processable?
+    return false if raw_message_id.blank?
     return false unless jid_type.in?(%w[user group])
     return false if ignore_message?
-    return false if find_message_by_source_id(raw_message_id) || message_under_process?
+    return false if find_evolution_message_by_source_id
 
     true
+  end
+
+  def find_evolution_message_by_source_id
+    @message = Message.find_by(inbox_id: @inbox.id, source_id: raw_message_id)
+  end
+
+  def acquire_evolution_message_guard
+    key = evolution_message_guard_key
+    token = SecureRandom.uuid
+    acquired = ::Redis::Alfred.set(key, token, nx: true, ex: EVOLUTION_MESSAGE_GUARD_TTL)
+    @evolution_message_guard = { key: key, token: token } if acquired
+    acquired.present?
+  rescue StandardError => e
+    # PostgreSQL is the correctness boundary, so a Redis outage must not lose a
+    # webhook. Log only exception type; adapter messages can contain endpoints.
+    Rails.logger.warn "Evolution API: Redis message guard unavailable (#{e.class})"
+    true
+  end
+
+  def release_evolution_message_guard
+    guard = @evolution_message_guard
+    return unless guard
+
+    ::Redis::Alfred.delete_if_value(guard[:key], guard[:token])
+  rescue StandardError => e
+    Rails.logger.warn "Evolution API: Redis message guard release failed (#{e.class})"
+  ensure
+    @evolution_message_guard = nil
+  end
+
+  def evolution_message_guard_key
+    source_digest = Digest::SHA256.hexdigest(raw_message_id.to_s)
+    format(
+      Redis::RedisKeys::EVOLUTION_MESSAGE_SOURCE_KEY,
+      inbox_id: @inbox.id,
+      source_digest: source_digest
+    )
   end
 
   # Override base conversation_params so groups carry their JID in additional_attributes,

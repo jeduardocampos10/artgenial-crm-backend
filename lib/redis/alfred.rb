@@ -25,6 +25,18 @@ module Redis::Alfred
       $alfred.with { |conn| conn.del(key) }
     end
 
+    # Release a lease only when it is still owned by the caller. A GET followed by
+    # DEL is racy: an expired lease could be reacquired between those commands.
+    def delete_if_value(key, value)
+      script = <<~LUA
+        if redis.call('get', KEYS[1]) == ARGV[1] then
+          return redis.call('del', KEYS[1])
+        end
+        return 0
+      LUA
+      $alfred.with { |conn| conn.eval(script, keys: [key], argv: [value]) }
+    end
+
     # increment a key by 1. throws error if key value is incompatible
     # sets key to 0 before operation if key doesn't exist
     def incr(key)

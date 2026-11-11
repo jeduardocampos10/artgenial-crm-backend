@@ -35,6 +35,9 @@ module Redis::RedisKeys
   LATEST_EVOLUTION_VERSION = 'LATEST_EVOLUTION_VERSION'.freeze
   # Check if a message create with same source-id is in progress?
   MESSAGE_SOURCE_KEY = 'MESSAGE_SOURCE_KEY::%<id>s'.freeze
+  # Evolution message ids are unique per inbox, not globally. The source digest keeps
+  # externally supplied identifiers out of Redis key names and operational tooling.
+  EVOLUTION_MESSAGE_SOURCE_KEY = 'EVOLUTION_MESSAGE_SOURCE_KEY::%<inbox_id>s::%<source_digest>s'.freeze
   OPENAI_CONVERSATION_KEY = 'OPEN_AI_CONVERSATION_KEY::V1::%<event_name>s::%<conversation_id>s::%<updated_at>d'.freeze
 
   ## Sempahores / Locks

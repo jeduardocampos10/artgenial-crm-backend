@@ -23,8 +23,7 @@ class AgentBots::N8nRequestService
       response = make_http_request
       handle_response(response)
     rescue StandardError => e
-      Rails.logger.error "[AgentBot N8n] Error: #{e.message}"
-      Rails.logger.error "[AgentBot N8n] Backtrace: #{e.backtrace.first(5).join("\n")}"
+      Rails.logger.error "[AgentBot N8n] Request failed error_type=#{e.class}"
     end
   end
 
@@ -57,8 +56,9 @@ class AgentBots::N8nRequestService
   end
 
   def make_http_request
-    uri = URI(@agent_bot.outgoing_url)
-    http = setup_http_client(uri)
+    destination = Security::OutboundUrlPolicy.validate!(@agent_bot.outgoing_url)
+    uri = destination.uri
+    http = setup_http_client(uri, destination.ip_address)
     request = build_http_request(uri)
 
     log_request_details(request)
@@ -68,8 +68,9 @@ class AgentBots::N8nRequestService
     response
   end
 
-  def setup_http_client(uri)
+  def setup_http_client(uri, ip_address)
     http = Net::HTTP.new(uri.host, uri.port)
+    http.ipaddr = ip_address
     http.use_ssl = uri.scheme == 'https'
     http.read_timeout = 10
     http.open_timeout = 5
@@ -92,15 +93,13 @@ class AgentBots::N8nRequestService
   end
 
   def log_request_details(request)
-    Rails.logger.debug { "[AgentBot N8n] Request URL: #{@agent_bot.outgoing_url}" }
-    Rails.logger.debug { "[AgentBot N8n] Request Headers: #{request.to_hash}" }
-    Rails.logger.debug { "[AgentBot N8n] Request Body: #{request.body}" }
+    Rails.logger.debug do
+      "[AgentBot N8n] Dispatch header_names=#{request.to_hash.keys.sort.join(',')} body_bytes=#{request.body.to_s.bytesize}"
+    end
   end
 
   def log_response_details(response)
-    Rails.logger.info "[AgentBot N8n] Response Status: #{response.code} #{response.message}"
-    Rails.logger.debug { "[AgentBot N8n] Response Headers: #{response.to_hash}" }
-    Rails.logger.debug { "[AgentBot N8n] Response Body: #{response.body}" }
+    Rails.logger.info "[AgentBot N8n] Response status=#{response.code} body_bytes=#{response.body.to_s.bytesize}"
   end
 
   def build_n8n_payload
@@ -225,7 +224,6 @@ class AgentBots::N8nRequestService
 
     begin
       parsed_response = JSON.parse(response.body)
-      Rails.logger.info "[AgentBot N8n] Parsed Response: #{parsed_response}"
       process_bot_response(parsed_response)
     rescue JSON::ParserError => e
       Rails.logger.error "[AgentBot N8n] JSON parsing failed: #{e.message}"
@@ -233,7 +231,7 @@ class AgentBots::N8nRequestService
   end
 
   def handle_error_response(response)
-    Rails.logger.error "[AgentBot N8n] Error Response: #{response.code} - #{response.body}"
+    Rails.logger.error "[AgentBot N8n] Error response status=#{response.code}"
   end
 
   def process_bot_response(parsed_response)
@@ -247,8 +245,6 @@ class AgentBots::N8nRequestService
 
     # Add signature if configured
     final_content = build_message_with_signature(message_content)
-    Rails.logger.info "[AgentBot N8n] Bot Response Message: #{final_content}"
-
     AgentBots::MessageCreator.new(@agent_bot).create_bot_reply(final_content, conversation)
   end
 

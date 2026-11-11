@@ -2,7 +2,10 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
   queue_as :low
 
   def perform(params = {})
-    Rails.logger.info "WhatsApp webhook processing started: #{params.inspect}"
+    Rails.logger.info(
+      "WhatsApp webhook processing started event=#{params[:event].to_s.first(80)} " \
+      "provider_payload=#{params[:instance].present? ? 'evolution' : 'meta'}"
+    )
 
     channel = find_channel(params)
     if channel_is_inactive?(channel)

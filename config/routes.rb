@@ -753,17 +753,18 @@ Rails.application.routes.draw do
   post 'webhooks/sendgrid', to: 'webhooks/sendgrid#create'
   get 'webhooks/whatsapp', to: 'webhooks/whatsapp#verify'
   post 'webhooks/whatsapp', to: 'webhooks/whatsapp#process_payload'
+  # Provider-specific routes must precede /:phone_number or the dynamic route
+  # bypasses their dedicated authentication and parsing actions.
+  post 'webhooks/whatsapp/evolution', to: 'webhooks/whatsapp#process_evolution_payload'
+  # EVO-2089: with WEBHOOK_BY_EVENTS=true Evolution appends the event name.
+  # :sub_event must not be called :event because path params override body params.
+  post 'webhooks/whatsapp/evolution/:sub_event', to: 'webhooks/whatsapp#process_evolution_payload'
+  post 'webhooks/whatsapp/evolution_go', to: 'webhooks/whatsapp#process_evolution_go_payload'
+  post 'webhooks/whatsapp/zapi', to: 'webhooks/whatsapp#process_payload'
   get 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#verify'
   post 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#process_payload'
   get 'webhooks/instagram', to: 'webhooks/instagram#verify'
   post 'webhooks/instagram', to: 'webhooks/instagram#events'
-  post 'webhooks/whatsapp/evolution', to: 'webhooks/whatsapp#process_payload'
-  # EVO-2089: com WEBHOOK_BY_EVENTS=true a Evolution posta cada evento em
-  # .../evolution/<evento> (ex.: messages-upsert). :sub_event (NAO :event — path
-  # param sobrescreveria o `event` do corpo). Mesmo process_payload, que le o evento do corpo.
-  post 'webhooks/whatsapp/evolution/:sub_event', to: 'webhooks/whatsapp#process_payload'
-  post 'webhooks/whatsapp/evolution_go', to: 'webhooks/whatsapp#process_evolution_go_payload'
-  post 'webhooks/whatsapp/zapi', to: 'webhooks/whatsapp#process_payload'
   post 'webhooks/evolution_hub', to: 'webhooks/evolution_hub#create'
 
   # Bot Runtime postback

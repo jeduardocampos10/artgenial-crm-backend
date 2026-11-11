@@ -1,5 +1,6 @@
 class Webhooks::WhatsappController < ActionController::API
   include MetaTokenVerifyConcern
+  include EvolutionWebhookAuthConcern
 
   def process_payload
     # Check if this is an Evolution Go webhook payload
@@ -15,6 +16,18 @@ class Webhooks::WhatsappController < ActionController::API
     end
 
     perform_whatsapp_events_job
+  end
+
+  # Evolution API has a dedicated authenticated, asynchronous-only path. The
+  # acknowledgement is sent only after the durable queue accepts the job; payload
+  # data can never opt into synchronous domain processing.
+  def process_evolution_payload
+    Webhooks::WhatsappEventsJob.perform_later(params.to_unsafe_hash)
+    head :ok
+  rescue StandardError
+    release_evolution_delivery_reservation!
+    Rails.logger.error('Evolution webhook enqueue failed')
+    head :internal_server_error
   end
 
   def process_evolution_go_payload

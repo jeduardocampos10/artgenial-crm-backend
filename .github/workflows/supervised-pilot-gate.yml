@@ -1,0 +1,86 @@
+name: Supervised pilot gate
+
+on:
+  pull_request:
+    branches: [artgenial/develop]
+
+permissions:
+  contents: read
+
+env:
+  RAILS_ENV: test
+  ENCRYPTION_KEY: test-encryption-key-for-fernet!!
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
+  POSTGRES_USERNAME: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DATABASE: evolution_test
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  evolution-webhook-safety:
+    name: Evolution webhook, idempotency and migration gate
+    # Ruby 3.4.4 is pinned by the application and is available on this image.
+    # ubuntu-latest moved to 26.04, which only publishes the newest 3.4 patch.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: evolution_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.4'
+          bundler-cache: true
+
+      - name: Prepare test database
+        run: bundle exec rails db:prepare
+
+      - name: Verify Evolution message idempotency
+        run: |
+          set -o pipefail
+          bundle exec rspec \
+            spec/services/whatsapp/evolution_handlers/messages_upsert_guard_spec.rb \
+            --format documentation 2>&1 | tee /tmp/evolution-message-spec.log || {
+              tail -n 80 /tmp/evolution-message-spec.log | sed 's/^/::error::/'
+              exit 1
+            }
+
+      - name: Verify idempotency migration preflight
+        run: |
+          set -o pipefail
+          bundle exec rspec \
+            spec/migrations/add_unique_inbox_source_id_to_messages_spec.rb \
+            --format documentation 2>&1 | tee /tmp/evolution-migration-spec.log || {
+              ruby -e 's = File.readlines(ARGV[0]).last(100).join; s = s.gsub("%", "%25").gsub("\r", "%0D").gsub("\n", "%0A"); puts "::error title=Migration spec failure::#{s}"' /tmp/evolution-migration-spec.log
+              exit 1
+            }
+
+      - name: Verify migrations are deployable
+        if: ${{ always() }}
+        run: bundle exec rails db:migrate

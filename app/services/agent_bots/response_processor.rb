@@ -28,7 +28,6 @@ class AgentBots::ResponseProcessor
 
     begin
       parsed_response = JSON.parse(response.body)
-      Rails.logger.info "[AgentBot HTTP] Parsed Response: #{parsed_response}"
       process_bot_response(parsed_response)
     rescue JSON::ParserError => e
       Rails.logger.error "[AgentBot HTTP] JSON parsing failed: #{e.message}"
@@ -36,7 +35,7 @@ class AgentBots::ResponseProcessor
   end
 
   def handle_error_response(response)
-    Rails.logger.error "[AgentBot HTTP] Error Response: #{response.code} - #{response.body}"
+    Rails.logger.error "[AgentBot HTTP] Error response status=#{response.code}"
   end
 
   def process_bot_response(parsed_response)
@@ -59,22 +58,18 @@ class AgentBots::ResponseProcessor
     else
       # Process as a single message with signature
       final_content = build_message_with_signature(text_content)
-      Rails.logger.info "[AgentBot HTTP] Bot Response Message: #{final_content}"
-      
-      # Try to create message normally first
       message_creator = AgentBots::MessageCreator.new(@agent_bot)
       content_type = select_items.present? ? 'input_select' : 'text'
       content_attributes = select_items.present? ? { items: select_items } : nil
-      message = message_creator.create_bot_reply(final_content, conversation, content_type: content_type, content_attributes: content_attributes)
-      
-      # If message creation failed (conversation not eligible, e.g., after transfer),
-      # try to force create it anyway (for final responses after transfer)
-      unless message
-        Rails.logger.info "[AgentBot HTTP] Message creation failed (conversation not eligible), attempting force create..."
-        message = message_creator.create_bot_reply(final_content, conversation, force: true, content_type: content_type, content_attributes: content_attributes)
-      end
-      
-      message
+
+      # Eligibility failure is an ownership boundary (for example, a human
+      # takeover). Never force an AI message through after that guard rejects it.
+      message_creator.create_bot_reply(
+        final_content,
+        conversation,
+        content_type: content_type,
+        content_attributes: content_attributes
+      )
     end
   end
 
