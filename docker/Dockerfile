@@ -156,6 +156,15 @@ COPY --from=pre-builder /app /app
 # Copy .git_sha file from pre-builder stage
 COPY --from=pre-builder /app/.git_sha /app/.git_sha
 
+# Homologation bootstrap assets are part of the immutable image. Coolify must
+# never depend on repository-file bind mounts for one-shot jobs or startup.
+COPY --chown=0:0 docker/artgenial/prepare-shared-schema.sh /opt/artgenial/prepare-shared-schema.sh
+COPY --chown=0:0 docker/artgenial/bootstrap_base.rb /opt/artgenial/bootstrap_base.rb
+RUN test -f /opt/artgenial/prepare-shared-schema.sh \
+  && test -f /opt/artgenial/bootstrap_base.rb \
+  && chmod 0555 /opt/artgenial/prepare-shared-schema.sh \
+  && chmod 0444 /opt/artgenial/bootstrap_base.rb
+
 # Fix line endings and ensure entrypoint/bin scripts have proper permissions.
 # Includes /app/bin/* because a Windows checkout leaves CRLF in the bin/rails
 # shebang (#!/usr/bin/env ruby\r) -> "env: can't execute 'ruby'" on `rails runner`.
