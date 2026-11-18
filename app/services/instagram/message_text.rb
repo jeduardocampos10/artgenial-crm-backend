@@ -20,7 +20,7 @@ class Instagram::MessageText < Instagram::BaseMessageText
   # Busca nome/username/foto do contato. Em Hub mode roteia pelo proxy /meta do EvoHub
   # com `Authorization: Bearer {channel_token}` (o access_token DIRETO no Graph é o
   # channel_token opaco → 190 → authorization_error! prendia o canal e o MessageBuilder
-  # engolia a DM). Direto-no-Meta (não-Hub) mantém o ?access_token= de sempre.
+  # engolia a DM). Direto-no-Meta também usa Bearer para não vazar tokens em URLs.
   # ⚠️ O token do Bearer é evolution_hub_meta['channel_token'] (o getter access_token é
   # sobrescrito por RefreshOauthTokenService e retorna 'hub-managed-…', NÃO o token real).
   # 'profile_pic' é o campo do contato (sender-scoped id); 'profile_picture_url' só existe
@@ -33,11 +33,12 @@ class Instagram::MessageText < Instagram::BaseMessageText
       Rails.logger.info("[Instagram::MessageText] Fetching user via Hub proxy - ig_scope_id: #{ig_scope_id}")
       response = HTTParty.get(url, headers: hub_auth_headers)
     else
-      url = "#{base_uri}/#{ig_scope_id}?fields=#{fields}&access_token=#{@inbox.channel.access_token}"
-      Rails.logger.info("[Instagram::MessageText] Fetching user data from Instagram API - ig_scope_id: #{ig_scope_id}, url: #{url.gsub(
-        /access_token=[^&]+/, 'access_token=[FILTERED]'
-      )}")
-      response = HTTParty.get(url)
+      url = "#{base_uri}/#{ig_scope_id}?fields=#{fields}"
+      Rails.logger.info("[Instagram::MessageText] Fetching user data from Instagram API - ig_scope_id: #{ig_scope_id}")
+      response = HTTParty.get(
+        url,
+        headers: { 'Authorization' => "Bearer #{@inbox.channel.access_token}" }
+      )
     end
 
     Rails.logger.info("[Instagram::MessageText] Instagram API response - status: #{response.code}, success?: #{response.success?}, body: #{response.body.inspect}")
@@ -119,7 +120,7 @@ class Instagram::MessageText < Instagram::BaseMessageText
   end
 
   def base_uri
-    "https://graph.instagram.com/#{GlobalConfigService.load('INSTAGRAM_API_VERSION', 'v23.0')}"
+    @inbox.channel.graph_api_base_url
   end
 
   # Header de auth do proxy /meta do EvoHub (Hub-ON). O proxy EXIGE Bearer (rejeita

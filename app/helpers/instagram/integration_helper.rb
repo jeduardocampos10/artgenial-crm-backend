@@ -1,34 +1,42 @@
 module Instagram::IntegrationHelper
-  REQUIRED_SCOPES = %w[instagram_business_basic instagram_business_manage_messages instagram_business_manage_comments].freeze
+  STATE_TTL = 10.minutes
 
-  # Generates a signed JWT token for Instagram integration
-  #
-  # @param identifier [String] The identifier to encode in the token
-  # @return [String, nil] The encoded JWT token or nil if client secret is missing
-  def generate_instagram_token(identifier)
-    return if client_secret.blank?
+  # Generates a short-lived, signed OAuth state bound to the initiating user,
+  # callback URI and login mode. The authorization code itself is single-use at
+  # Meta, while the random jti prevents predictable state values.
+  def generate_instagram_token(identifier, mode:, redirect_uri:)
+    return if client_secret.blank? || Current.user.blank?
 
-    JWT.encode(token_payload(identifier), client_secret, 'HS256')
+    JWT.encode(token_payload(identifier, mode: mode, redirect_uri: redirect_uri), client_secret, 'HS256')
   rescue StandardError => e
-    Rails.logger.error("Failed to generate Instagram token: #{e.message}")
+    Rails.logger.error("Failed to generate Instagram OAuth state: #{e.class}")
     nil
   end
 
-  def token_payload(identifier)
+  def token_payload(identifier, mode:, redirect_uri:)
+    now = Time.current.to_i
     {
       sub: identifier,
-      iat: Time.current.to_i
+      user_id: Current.user.id.to_s,
+      mode: mode,
+      redirect_uri: redirect_uri,
+      jti: SecureRandom.uuid,
+      iat: now,
+      exp: now + STATE_TTL.to_i
     }
   end
 
-  # Verifies and decodes an Instagram JWT token
-  #
-  # @param token [String] The JWT token to verify
-  # @return [String, nil] The identifier from the token or nil if invalid
-  def verify_instagram_token(token)
-    return if token.blank? || client_secret.blank?
+  # Returns the verified payload only when it belongs to the authenticated user
+  # and exact callback URI. This blocks login-CSRF and cross-session state reuse.
+  def verify_instagram_state(token, redirect_uri:)
+    return if token.blank? || client_secret.blank? || Current.user.blank?
 
-    decode_token(token, client_secret)
+    payload = decode_token(token, client_secret)
+    return unless payload
+    return unless payload['user_id'].to_s == Current.user.id.to_s
+    return unless ActiveSupport::SecurityUtils.secure_compare(payload['redirect_uri'].to_s, redirect_uri.to_s)
+
+    payload
   end
 
   private
@@ -40,10 +48,11 @@ module Instagram::IntegrationHelper
   def decode_token(token, secret)
     JWT.decode(token, secret, true, {
                  algorithm: 'HS256',
-                 verify_expiration: true
-               }).first['sub']
+                 verify_expiration: true,
+                 verify_iat: true
+               }).first
   rescue StandardError => e
-    Rails.logger.error("Unexpected error verifying Instagram token: #{e.message}")
+    Rails.logger.warn("Instagram OAuth state verification failed: #{e.class}")
     nil
   end
 end

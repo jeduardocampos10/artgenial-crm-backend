@@ -9,13 +9,12 @@ class Instagram::SendOnInstagramService < Instagram::BaseSendService
   # https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
   def send_message(message_content)
     access_token = channel.access_token
-    query = { access_token: access_token }
     instagram_id = channel.instagram_id.presence || 'me'
 
     response = HTTParty.post(
-      "#{MetaBaseUrl.for(:instagram)}/#{instagram_id}/messages",
+      "#{channel.graph_api_base_url}/#{instagram_id}/messages",
       body: message_content,
-      query: query
+      headers: { 'Authorization' => "Bearer #{access_token}" }
     )
 
     process_response(response, message_content)

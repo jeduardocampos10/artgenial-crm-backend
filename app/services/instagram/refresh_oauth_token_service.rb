@@ -10,6 +10,7 @@ class Instagram::RefreshOauthTokenService
 
   # Returns a valid access token, refreshing it if necessary and eligible
   def access_token
+    return unified_access_token if channel.unified_login?
     return unless token_valid?
 
     # If token is valid and eligible for refresh, attempt to refresh it
@@ -19,6 +20,16 @@ class Instagram::RefreshOauthTokenService
   end
 
   private
+
+  # Unified Login returns a Business Integration System User token. It must
+  # never be sent through Instagram's ig_refresh_token flow; a blank expiry
+  # means the Meta configuration issued a non-expiring token.
+  def unified_access_token
+    return channel[:access_token] if channel.expires_at.blank? || Time.current < channel.expires_at
+
+    channel.authorization_error!
+    nil
+  end
 
   # Checks if the current token is still valid (not expired)
   def token_valid?
