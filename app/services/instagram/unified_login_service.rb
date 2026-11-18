@@ -40,21 +40,30 @@ class Instagram::UnifiedLoginService
     require_configuration!
     raise Error, 'Instagram authorization code is missing' if code.blank?
 
+    # Facebook Login for Business documents this exchange with exactly the app
+    # credentials and one-time code. Unlike the authorization request, the token
+    # request must not repeat redirect_uri; Meta returns a generic code 1 for this
+    # flow when unsupported exchange parameters are supplied.
     graph_get(
       '/oauth/access_token',
       {
         client_id: client_id,
         client_secret: client_secret,
-        code: code,
-        redirect_uri: redirect_uri
-      }
+        code: code
+      },
+      operation: 'token exchange'
     ).tap do |payload|
       raise Error, 'Meta did not return an Instagram access token' if payload['access_token'].blank?
     end
   end
 
   def client_business_id(access_token)
-    payload = graph_get('/me', { fields: 'client_business_id' }, access_token: access_token)
+    payload = graph_get(
+      '/me',
+      { fields: 'client_business_id' },
+      access_token: access_token,
+      operation: 'business identity'
+    )
     payload['client_business_id'].presence || raise(Error, 'Meta did not return the client business ID')
   end
 
@@ -65,7 +74,12 @@ class Instagram::UnifiedLoginService
     MAX_ACCOUNT_PAGES.times do |page_index|
       query = { fields: 'id,username', limit: 100 }
       query[:after] = after if after.present?
-      payload = graph_get('/me/assigned_instagram_accounts', query, access_token: access_token)
+      payload = graph_get(
+        '/me/assigned_instagram_accounts',
+        query,
+        access_token: access_token,
+        operation: 'account discovery'
+      )
       accounts.concat(Array(payload['data']))
 
       next_after = payload.dig('paging', 'cursors', 'after').presence
@@ -131,7 +145,7 @@ class Instagram::UnifiedLoginService
     version.match?(/\Av\d+\.\d+\z/) ? version : 'v23.0'
   end
 
-  def graph_get(path, query, access_token: nil)
+  def graph_get(path, query, access_token: nil, operation: 'request')
     headers = { 'Accept' => 'application/json' }
     headers['Authorization'] = "Bearer #{access_token}" if access_token.present?
     response = HTTParty.get(
@@ -144,7 +158,7 @@ class Instagram::UnifiedLoginService
 
     return payload if response.success? && payload['error'].blank?
 
-    raise_meta_error(response, payload, operation: 'request')
+    raise_meta_error(response, payload, operation: operation)
   end
 
   def parse_response(response)
