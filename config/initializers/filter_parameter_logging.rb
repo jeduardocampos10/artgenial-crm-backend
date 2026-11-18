@@ -3,7 +3,8 @@
 # Configure sensitive parameters which will be filtered from the log file.
 Rails.application.config.filter_parameters += [
   :password, :secret, :_key, :auth, :crypt, :salt, :certificate, :otp, :access, :private, :protected, :ssn,
-  :api_hash, :admin_token, :instance_token, :apikey, :apiKey, :EVOLUTION_ADMIN_SECRET
+  :api_hash, :admin_token, :instance_token, :apikey, :apiKey, :EVOLUTION_ADMIN_SECRET,
+  /\A(code|state)\z/i
 ]
 
 # Regex to filter all occurrences of 'token' in keys except for 'website_token'

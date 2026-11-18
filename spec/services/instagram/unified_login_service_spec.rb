@@ -47,9 +47,12 @@ RSpec.describe Instagram::UnifiedLoginService do
         hash_including(query: {
           client_id: 'meta-app-1',
           client_secret: 'meta-secret',
-          code: 'one-time-code',
-          redirect_uri: 'https://crm.example.com/instagram/callback'
+          code: 'one-time-code'
         })
+      )
+      expect(HTTParty).not_to have_received(:get).with(
+        anything,
+        hash_including(query: hash_including(redirect_uri: anything))
       )
     end
 
