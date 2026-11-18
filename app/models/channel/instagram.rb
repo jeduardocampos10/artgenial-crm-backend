@@ -3,12 +3,15 @@
 # Table name: channel_instagram
 #
 #  id                 :uuid             not null, primary key
-#  access_token       :string           not null
+#  access_token       :text             not null
+#  auth_mode          :string           default("instagram_login"), not null
+#  client_business_id :string
 #  evolution_hub_meta :jsonb            not null
-#  expires_at         :datetime         not null
+#  expires_at         :datetime
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
 #  instagram_id       :string           not null
+#  login_config_id    :string
 #
 # Indexes
 #
@@ -23,6 +26,7 @@ class Channel::Instagram < ApplicationRecord
   self.table_name = 'channel_instagram'
 
   AUTHORIZATION_ERROR_THRESHOLD = 1
+  AUTH_MODES = %w[instagram_login unified_login].freeze
 
   # On a hub-managed channel the credentials only exist while the Hub reports
   # `active` — the `channel_connected` webhook fills them in, and a
@@ -31,6 +35,8 @@ class Channel::Instagram < ApplicationRecord
   validates :access_token, presence: true, unless: :hub_credentials_absent?
   validates :instagram_id, uniqueness: true
   validates :instagram_id, presence: true, unless: :hub_credentials_absent?
+  validates :auth_mode, inclusion: { in: AUTH_MODES }
+  validates :client_business_id, :login_config_id, presence: true, if: :unified_login?
 
   after_create_commit :subscribe
   after_update_commit :resubscribe_if_token_changed
@@ -46,6 +52,22 @@ class Channel::Instagram < ApplicationRecord
 
   def name
     'Instagram'
+  end
+
+  def unified_login?
+    auth_mode == 'unified_login'
+  end
+
+  # Unified Login uses graph.facebook.com with an explicit Instagram account ID;
+  # legacy Instagram Login remains on graph.instagram.com. Hub-managed channels
+  # keep using the existing transparent /meta proxy.
+  def graph_api_base_url
+    return MetaBaseUrl.for(:instagram) if MetaBaseUrl.enabled?
+
+    version = GlobalConfigService.load('INSTAGRAM_API_VERSION', 'v23.0').to_s
+    version = 'v23.0' unless version.match?(/\Av\d+\.\d+\z/)
+    host = unified_login? ? 'graph.facebook.com' : 'graph.instagram.com'
+    "https://#{host}/#{version}"
   end
 
   def create_contact_inbox(instagram_id, name)
@@ -68,10 +90,13 @@ class Channel::Instagram < ApplicationRecord
     Rails.logger.info("Instagram: Subscribing to webhooks for instagram_id=#{instagram_id}")
 
     response = HTTParty.post(
-      "https://graph.instagram.com/v23.0/#{instagram_id}/subscribed_apps",
-      query: {
-        subscribed_fields: %w[messages message_reactions messaging_seen message_edit comments live_comments],
-        access_token: access_token
+      "#{graph_api_base_url}/#{instagram_id}/subscribed_apps",
+      body: URI.encode_www_form(
+        subscribed_fields: %w[messages message_reactions messaging_seen message_edit comments live_comments].join(',')
+      ),
+      headers: {
+        'Authorization' => "Bearer #{access_token}",
+        'Content-Type' => 'application/x-www-form-urlencoded'
       }
     )
 
@@ -92,10 +117,8 @@ class Channel::Instagram < ApplicationRecord
     return true if MetaBaseUrl.enabled?
 
     HTTParty.delete(
-      "https://graph.instagram.com/v23.0/#{instagram_id}/subscribed_apps",
-      query: {
-        access_token: access_token
-      }
+      "#{graph_api_base_url}/#{instagram_id}/subscribed_apps",
+      headers: { 'Authorization' => "Bearer #{access_token}" }
     )
     true
   rescue StandardError => e
@@ -112,10 +135,8 @@ class Channel::Instagram < ApplicationRecord
     Rails.logger.info("Instagram: Checking subscription status for instagram_id=#{instagram_id}")
 
     response = HTTParty.get(
-      "https://graph.instagram.com/v23.0/#{instagram_id}/subscribed_apps",
-      query: {
-        access_token: access_token
-      }
+      "#{graph_api_base_url}/#{instagram_id}/subscribed_apps",
+      headers: { 'Authorization' => "Bearer #{access_token}" }
     )
 
     if response.success?

@@ -9,6 +9,8 @@ module IntegrationRequirements
   CONFIG_TYPE_REQUIRED_KEYS = {
     'facebook'     => %w[FB_APP_ID FB_APP_SECRET FB_VERIFY_TOKEN],
     'whatsapp'     => %w[WP_APP_ID WP_APP_SECRET WP_VERIFY_TOKEN WP_WHATSAPP_CONFIG_ID],
+    # Legacy Instagram Login remains supported when config_id is absent; the
+    # controller selects Unified Login only when INSTAGRAM_LOGIN_CONFIG_ID exists.
     'instagram'    => %w[INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET INSTAGRAM_VERIFY_TOKEN],
     'evolution'    => %w[EVOLUTION_API_URL EVOLUTION_ADMIN_SECRET],
     'evolution_go' => %w[EVOLUTION_GO_API_URL EVOLUTION_GO_ADMIN_SECRET],

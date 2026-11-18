@@ -1,6 +1,12 @@
 module InstagramConcern
   extend ActiveSupport::Concern
 
+  LEGACY_REQUIRED_SCOPES = %w[
+    instagram_business_basic
+    instagram_business_manage_messages
+    instagram_business_manage_comments
+  ].freeze
+
   def instagram_client
     ::OAuth2::Client.new(
       client_id,
@@ -15,6 +21,24 @@ module InstagramConcern
     )
   end
 
+  def unified_login_service
+    Instagram::UnifiedLoginService.new(
+      client_id: client_id,
+      client_secret: client_secret,
+      config_id: login_config_id,
+      redirect_uri: instagram_redirect_uri,
+      api_version: instagram_api_version
+    )
+  end
+
+  def unified_login_enabled?
+    login_config_id.present?
+  end
+
+  def instagram_redirect_uri
+    "#{base_url}/instagram/callback"
+  end
+
   private
 
   def client_id
@@ -23,6 +47,14 @@ module InstagramConcern
 
   def client_secret
     GlobalConfigService.load('INSTAGRAM_APP_SECRET', nil)
+  end
+
+  def login_config_id
+    GlobalConfigService.load('INSTAGRAM_LOGIN_CONFIG_ID', nil)
+  end
+
+  def instagram_api_version
+    GlobalConfigService.load('INSTAGRAM_API_VERSION', 'v23.0')
   end
 
   def exchange_for_long_lived_token(short_lived_token)
