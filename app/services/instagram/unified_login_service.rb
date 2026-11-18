@@ -40,16 +40,15 @@ class Instagram::UnifiedLoginService
     require_configuration!
     raise Error, 'Instagram authorization code is missing' if code.blank?
 
-    # Facebook Login for Business documents this exchange with exactly the app
-    # credentials and one-time code. Unlike the authorization request, the token
-    # request must not repeat redirect_uri; Meta returns a generic code 1 for this
-    # flow when unsupported exchange parameters are supplied.
+    # This server-side redirect flow sends redirect_uri in the authorization
+    # request, so Meta requires the exact same value during the code exchange.
     graph_get(
       '/oauth/access_token',
       {
         client_id: client_id,
         client_secret: client_secret,
-        code: code
+        code: code,
+        redirect_uri: redirect_uri
       },
       operation: 'token exchange'
     ).tap do |payload|
