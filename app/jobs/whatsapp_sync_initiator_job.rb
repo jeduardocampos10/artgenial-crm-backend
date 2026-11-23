@@ -56,10 +56,16 @@ class WhatsappSyncInitiatorJob < ApplicationJob
   end
 
   def create_evolution_instance(channel)
-    api_url = channel.provider_config['api_url']
-    admin_token = channel.provider_config['admin_token']
-    instance_name = channel.provider_config['instance_name']
+    provider_config = channel.provider_config || {}
+    api_url = provider_config['api_url'].presence ||
+              GlobalConfigService.load_env_first('EVOLUTION_API_URL', '').to_s.strip
+    admin_token = provider_config['admin_token'].presence ||
+                  GlobalConfigService.load_env_first('EVOLUTION_ADMIN_SECRET', '').to_s.strip
+    instance_name = provider_config['instance_name']
     phone_number = channel.phone_number
+
+    raise 'Evolution API URL is not configured' if api_url.blank?
+    raise 'Evolution admin credential is not configured' if admin_token.blank?
 
     create_url = "#{api_url.chomp('/')}/instance/create"
     Rails.logger.info "[EVOLUTION] Creating instance at #{create_url}"
@@ -71,6 +77,8 @@ class WhatsappSyncInitiatorJob < ApplicationJob
     raise 'BACKEND_URL is not configured (required to register Evolution webhook callback)' if backend_url.empty?
 
     webhook_url_value = "#{backend_url.chomp('/')}/webhooks/whatsapp/evolution"
+    webhook_secret = ENV['EVOLUTION_WEBHOOK_SECRET'].to_s
+    raise 'EVOLUTION_WEBHOOK_SECRET must contain at least 32 bytes' if webhook_secret.bytesize < 32
 
     request_body = {
       instanceName: instance_name,
@@ -81,7 +89,10 @@ class WhatsappSyncInitiatorJob < ApplicationJob
         url: webhook_url_value,
         byEvents: false,
         base64: true,
-        events: webhook_events_for_sync
+        events: webhook_events_for_sync,
+        headers: {
+          jwt_key: webhook_secret
+        }
       }
     }
 
@@ -103,7 +114,7 @@ class WhatsappSyncInitiatorJob < ApplicationJob
 
       # Store api_hash in provider_config for future use
       channel.update!(
-        provider_config: channel.provider_config.merge(
+        provider_config: provider_config.merge(
           'api_hash' => instance_data['hash'],
           'instance_id' => instance_data['instance']['instanceId']
         )
@@ -118,11 +129,13 @@ class WhatsappSyncInitiatorJob < ApplicationJob
   end
 
   def apply_evolution_configurations(channel)
-    api_url = channel.provider_config['api_url']
-    api_hash = channel.provider_config['api_hash']
-    instance_name = channel.provider_config['instance_name']
-    proxy_settings = channel.provider_config['proxy_settings'] || {}
-    instance_settings = channel.provider_config['instance_settings'] || {}
+    provider_config = channel.provider_config || {}
+    api_url = provider_config['api_url'].presence ||
+              GlobalConfigService.load_env_first('EVOLUTION_API_URL', '').to_s.strip
+    api_hash = provider_config['api_hash']
+    instance_name = provider_config['instance_name']
+    proxy_settings = provider_config['proxy_settings'] || {}
+    instance_settings = provider_config['instance_settings'] || {}
 
     # Apply proxy settings if enabled
     configure_evolution_proxy(api_url, api_hash, instance_name, proxy_settings) if proxy_settings['enabled']
